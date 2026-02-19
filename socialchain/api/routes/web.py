@@ -57,3 +57,10 @@ def network():
 def my_network():
     """Full-page 3D interactive network visualization for the logged-in user."""
     return render_template("user_network.html", username=session.get("username"), user_did=session.get("user_did"))
+
+
+@web_bp.route("/ide")
+@login_required
+def ide():
+    """Network Workbench IDE: node registry, topology builder, transaction inspector, contract editor."""
+    return render_template("ide.html", username=session.get("username"), user_did=session.get("user_did"))

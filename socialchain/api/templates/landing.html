@@ -287,24 +287,36 @@
 
     <span class="sc-hero-badge">
         <span class="sc-status-dot" style="width:6px;height:6px;margin:0;"></span>
-        Blockchain-Verified Social Network · Live Beta
+        Blockchain Network Workbench · Live Beta
     </span>
 
-    <h1 class="sc-hero-title">The Internet's<br>Social Layer,<br>Rebuilt on Chain</h1>
+    <h1 class="sc-hero-title">Build, Manage &amp;<br>Visualize Blockchain<br>Networks</h1>
 
     <p class="sc-hero-sub">
-        SocialChain is a proprietary decentralized social network where every user is a
-        cryptographically-verified blockchain node. Own your identity, your connections, and
-        your data — no central authority required.
+        SocialChain is an open workbench for creating and maintaining blockchain-based networks
+        of <strong style="-webkit-text-fill-color:#0dcaf0;color:#0dcaf0;">people</strong>,
+        <strong style="-webkit-text-fill-color:#198754;color:#198754;">devices</strong>, and
+        <strong style="-webkit-text-fill-color:#ffc107;color:#ffc107;">AI agents</strong> —
+        with a VS Code-style IDE, live network visualization, and built-in agent assistants.
     </p>
 
     <div class="sc-hero-btns">
         <a href="{{ url_for('auth.register') }}" class="sc-btn-primary">
-            <i class="bi bi-person-plus-fill me-2"></i>Create Your Node
+            <i class="bi bi-layout-wtf me-2"></i>Open Workbench
         </a>
         <a href="#features" class="sc-btn-outline">
             <i class="bi bi-play-circle me-2"></i>Explore Features
         </a>
+    </div>
+
+    <!-- Workbench preview strip -->
+    <div class="mt-4 d-flex align-items-center gap-3 flex-wrap justify-content-center"
+         style="animation:fadeInUp .7s .4s ease both;">
+        <span class="sc-pill"><i class="bi bi-people me-1"></i>Node Registry</span>
+        <span class="sc-pill"><i class="bi bi-diagram-3 me-1"></i>Topology Builder</span>
+        <span class="sc-pill"><i class="bi bi-file-code me-1"></i>Contract Editor</span>
+        <span class="sc-pill"><i class="bi bi-activity me-1"></i>Tx Inspector</span>
+        <span class="sc-pill"><i class="bi bi-robot me-1"></i>Agent Chat</span>
     </div>
 
     <div class="sc-scroll-hint">
@@ -319,12 +331,12 @@
     <div class="container">
         <div class="row g-3">
             <div class="col-6 col-md-3 sc-stat-item">
-                <div class="sc-stat-value">∞</div>
-                <div class="sc-stat-label">Scalable Nodes</div>
+                <div class="sc-stat-value">3</div>
+                <div class="sc-stat-label">Node Types (People · Devices · AI)</div>
             </div>
             <div class="col-6 col-md-3 sc-stat-item">
-                <div class="sc-stat-value">100%</div>
-                <div class="sc-stat-label">Data Ownership</div>
+                <div class="sc-stat-value">IDE</div>
+                <div class="sc-stat-label">VS Code-Style Workbench</div>
             </div>
             <div class="col-6 col-md-3 sc-stat-item">
                 <div class="sc-stat-value">DID</div>
@@ -332,7 +344,7 @@
             </div>
             <div class="col-6 col-md-3 sc-stat-item">
                 <div class="sc-stat-value">AI+</div>
-                <div class="sc-stat-label">Human &amp; AI Agents</div>
+                <div class="sc-stat-label">Autonomous Agent Nodes</div>
             </div>
         </div>
     </div>
@@ -348,9 +360,10 @@
 
         <div class="text-center mb-5">
             <span class="sc-pill mb-3 d-inline-block"><i class="bi bi-stars me-1"></i>Everything You Need</span>
-            <h2 class="fw-bold display-6" style="color:#e0e0e0;">One network. Infinite possibilities.</h2>
-            <p class="text-secondary" style="max-width:520px;margin:0 auto;">
-                Explore the technology, philosophy, and functionality powering the next generation of social connectivity.
+            <h2 class="fw-bold display-6" style="color:#e0e0e0;">One workbench. Every network.</h2>
+            <p class="text-secondary" style="max-width:560px;margin:0 auto;">
+                SocialChain gives you the tools to design, deploy, monitor, and evolve
+                blockchain networks of people, devices, and AI agents — all in one place.
             </p>
         </div>
 
@@ -360,6 +373,12 @@
                 <button class="nav-link active" id="tab-overview" data-bs-toggle="pill"
                         data-bs-target="#pane-overview" type="button" role="tab" aria-selected="true">
                     <i class="bi bi-globe2 me-1"></i>Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-workbench" data-bs-toggle="pill"
+                        data-bs-target="#pane-workbench" type="button" role="tab" aria-selected="false">
+                    <i class="bi bi-layout-wtf me-1"></i>Workbench
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -393,31 +412,35 @@
                             What is SocialChain?
                         </h3>
                         <p class="text-secondary lh-lg">
-                            SocialChain is a next-generation social network built entirely on a <strong class="text-light">proprietary blockchain</strong>.
-                            Unlike traditional platforms that store your data on centralized servers, SocialChain turns
-                            every user into a <strong class="text-info">network node</strong> — a first-class participant
-                            in a living, self-governing decentralized network.
+                            SocialChain is a <strong class="text-light">VS Code-style workbench</strong> for
+                            creating, maintaining, and visualizing blockchain-based networks of
+                            <strong class="text-info">people</strong>,
+                            <strong class="text-success">devices</strong>, and
+                            <strong class="text-warning">AI agents</strong>.
                         </p>
                         <p class="text-secondary lh-lg">
-                            Every identity is a <strong class="text-light">Decentralized Identifier (DID)</strong> recorded on the
-                            blockchain. Every connection, post, and interaction is a cryptographically-signed
-                            <strong class="text-light">transaction</strong> — immutable, transparent, and fully owned by you.
+                            Every node — whether human, IoT sensor, or autonomous agent — gets a
+                            <strong class="text-light">Decentralized Identifier (DID)</strong> recorded on-chain.
+                            Every connection, transaction, and contract deployment is cryptographically signed
+                            and immutably stored.
                         </p>
                         <p class="text-secondary lh-lg">
-                            Human users co-exist alongside AI agents on the same network graph, enabling
-                            <strong class="text-light">human-AI collaboration</strong> at the protocol level.
+                            The built-in IDE gives you a <strong class="text-light">Node Registry</strong>,
+                            drag-and-drop <strong class="text-light">Topology Builder</strong>,
+                            <strong class="text-light">Transaction Inspector</strong>, and
+                            <strong class="text-light">Contract Editor</strong> — all inside a single desktop app.
                         </p>
                         <a href="{{ url_for('auth.register') }}" class="sc-btn-primary mt-2 d-inline-block">
-                            Join the Network <i class="bi bi-arrow-right ms-1"></i>
+                            Open the Workbench <i class="bi bi-arrow-right ms-1"></i>
                         </a>
                     </div>
                     <div class="col-lg-7">
                         <div class="row g-3">
                             {% set overview_cards = [
-                                ('bi-shield-lock', '#0dcaf0', 'Sovereign Identity', 'Your DID is yours alone — generated from cryptographic keys, not issued by any company.'),
-                                ('bi-diagram-3', '#7c3aed', 'Living Graph', 'Your social graph is a living blockchain structure, visualizable as a 3D interactive network scaling to millions of nodes.'),
-                                ('bi-robot', '#ffc107', 'AI Agent Layer', 'Deploy AI agents as first-class nodes. Agents can form connections, send transactions, and participate in the network.'),
-                                ('bi-eye-slash', '#198754', 'No Central Authority', 'No company owns your data. The blockchain enforces the rules — math, not corporate policy.')
+                                ('bi-people', '#0dcaf0', 'People · Devices · AI', 'Three first-class node types. Humans register their DID identity; devices join as verified hardware nodes; AI agents operate autonomously on the network.'),
+                                ('bi-layout-wtf', '#7c3aed', 'VS Code Workbench', 'Activity bar, tabbed IDE panels, live chat assistant — the same ergonomics developers already know, applied to blockchain network management.'),
+                                ('bi-robot', '#ffc107', 'AI Agent Assistant', 'An always-present agent chat panel (Ctrl+`) provides on-demand help with contracts, transactions, topology, and node identity — right inside the app.'),
+                                ('bi-eye-slash', '#198754', 'No Central Authority', 'No company owns your network. The blockchain enforces the rules — math, not corporate policy. Your DID key is your identity.')
                             ] %}
                             {% for icon, color, title, desc in overview_cards %}
                             <div class="col-sm-6">
@@ -432,6 +455,43 @@
                             {% endfor %}
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ── WORKBENCH ── -->
+            <div class="tab-pane fade" id="pane-workbench" role="tabpanel" aria-labelledby="tab-workbench">
+                <div class="row g-4">
+                    <div class="col-12 text-center mb-2">
+                        <h3 class="fw-bold" style="color:#e0e0e0;">The Network Workbench</h3>
+                        <p class="text-secondary" style="max-width:620px;margin:0 auto;">
+                            A single IDE for the full lifecycle of a blockchain network — from design to deployment to monitoring.
+                        </p>
+                    </div>
+                    {% set wb_items = [
+                        ('bi-people', '#0dcaf0', 'Node Registry',
+                         'Browse all nodes on the network — people, devices, and AI agents. Filter by type, inspect DIDs, view metadata, and trigger on-chain verification actions.'),
+                        ('bi-diagram-3', '#7c3aed', 'Topology Builder',
+                         'Drag-and-drop canvas to design network topologies. Add person, device, and agent nodes; draw connections; then commit the entire topology to the blockchain in one click.'),
+                        ('bi-activity', '#ffc107', 'Transaction Inspector',
+                         'Browse every transaction across every block. Drill into payloads, signatures, block headers, and pending mempool entries. Full JSON view for any tx.'),
+                        ('bi-file-code', '#198754', 'Contract Editor',
+                         'Write Solidity smart contracts with sample templates for SocialNode, AgentRegistry, and NetworkTransaction. Simulate compile, deploy to chain, or send source to the agent for an AI-powered audit.'),
+                        ('bi-robot', '#e1306c', 'Agent Chat Panel',
+                         'An always-available AI assistant panel (Ctrl+`) answers questions about contracts, transactions, DIDs, and network topology in real time — like VS Code\'s Copilot Chat, but blockchain-native.'),
+                        ('bi-globe2', '#17a2b8', 'Live Network Visualization',
+                         'Force-directed 2D network map and full 3D interactive globe — both update live as nodes and connections are added to the chain.')
+                    ] %}
+                    {% for icon, color, title, desc in wb_items %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="sc-feature-card h-100">
+                            <div class="sc-feature-icon" style="background:{{ color }}18;border-color:{{ color }}40;color:{{ color }};">
+                                <i class="bi {{ icon }}"></i>
+                            </div>
+                            <h5>{{ title }}</h5>
+                            <p>{{ desc }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
 
@@ -687,14 +747,14 @@
     <div class="container">
         <div class="sc-cta-card">
             <span class="sc-pill mb-3 d-inline-block"><i class="bi bi-lightning-fill me-1"></i>Get Started Today</span>
-            <h2 class="fw-bold display-6 mb-3" style="color:#e0e0e0;">Become a Node.<br>Own Your Social Graph.</h2>
+            <h2 class="fw-bold display-6 mb-3" style="color:#e0e0e0;">Your blockchain network<br>starts here.</h2>
             <p class="text-secondary mb-4" style="max-width:500px;margin:0 auto 1.5rem;">
-                Join SocialChain and take back control of your digital identity. 
-                Your blockchain node is waiting.
+                Register a node, design your topology, deploy your first contract, and chat
+                with your AI agent assistant — all inside the SocialChain workbench.
             </p>
             <div class="d-flex gap-3 justify-content-center flex-wrap">
                 <a href="{{ url_for('auth.register') }}" class="sc-btn-primary">
-                    <i class="bi bi-person-plus-fill me-2"></i>Create Free Account
+                    <i class="bi bi-layout-wtf me-2"></i>Open the Workbench
                 </a>
                 <a href="{{ url_for('auth.login') }}" class="sc-btn-outline">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
@@ -711,7 +771,7 @@
     <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
             <span class="fw-bold text-light"><i class="bi bi-link-45deg text-info"></i> SocialChain</span>
-            <span class="ms-2">— Decentralized Social Network</span>
+            <span class="ms-2">— Blockchain Network Workbench</span>
         </div>
         <div class="d-flex gap-3">
             <a href="{{ url_for('auth.register') }}" class="text-secondary text-decoration-none small">Register</a>

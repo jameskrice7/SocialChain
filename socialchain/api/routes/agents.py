@@ -1,3 +1,4 @@
+import time
 from flask import Blueprint, jsonify, request, current_app
 from ...agents.agent import AIAgent
 from ...agents.task import AgentTask
@@ -26,6 +27,67 @@ def register_agent():
     agent.register_on_blockchain(state.blockchain)
     state.agent_registry[agent.did] = agent
     return jsonify({"message": "Agent registered", "agent": agent.to_dict()}), 201
+
+
+@agents_bp.route("/api/agents/chat", methods=["POST"])
+def agent_chat():
+    """Chat with any available agent (or the first one if none specified)."""
+    state = current_app.app_state
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    message = data.get("message", "").strip()
+    if not message:
+        return jsonify({"error": "Missing message"}), 400
+
+    agent_did = data.get("agent_did")
+    if agent_did and agent_did in state.agent_registry:
+        agent = state.agent_registry[agent_did]
+    elif state.agent_registry:
+        agent = next(iter(state.agent_registry.values()))
+    else:
+        # Bootstrap a default assistant agent on first chat
+        agent = AIAgent(
+            name="ChainBot",
+            capabilities=["chat", "echo", "autonomous_post"],
+        )
+        agent.register_on_blockchain(state.blockchain)
+        state.agent_registry[agent.did] = agent
+
+    task = AgentTask(
+        description="chat",
+        payload={"capability": "chat", "message": message},
+    )
+    agent.submit_task(task)
+    completed = agent.run_next_task()
+    result = completed.result if completed else {"reply": "No response.", "agent": agent.name, "agent_did": agent.did}
+    return jsonify(result), 200
+
+
+@agents_bp.route("/api/agents/feed", methods=["GET"])
+def agent_feed():
+    """Return recent autonomous-post activity from registered agents (max 3 agents)."""
+    state = current_app.app_state
+    topics = ["network", "blockchain", "contract", "audit"]
+    feed = []
+    # Limit to first 3 agents to keep the response fast
+    for agent in list(state.agent_registry.values())[:3]:
+        for topic in topics:
+            task = AgentTask(
+                description="autonomous_post",
+                payload={"capability": "autonomous_post", "topic": topic},
+            )
+            agent.submit_task(task)
+            done = agent.run_next_task()
+            if done and done.result and "post" in done.result:
+                feed.append({
+                    "agent": agent.name,
+                    "agent_did": agent.did,
+                    "topic": topic,
+                    "post": done.result["post"],
+                    "timestamp": time.time(),
+                })
+    return jsonify({"feed": feed}), 200
 
 
 @agents_bp.route("/api/agents/<path:agent_did>/tasks", methods=["POST"])

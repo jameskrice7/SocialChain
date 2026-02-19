@@ -59,3 +59,43 @@ def test_agent_to_dict():
     assert d["name"] == "Agent1"
     assert "echo" in d["capabilities"]
     assert d["did"].startswith("did:socialchain:")
+
+
+def test_agent_chat_capability():
+    agent = AIAgent(name="ChainBot", capabilities=["chat"])
+    task = AgentTask(description="chat", payload={"capability": "chat", "message": "Hello"})
+    agent.submit_task(task)
+    completed = agent.run_next_task()
+    assert completed is not None
+    assert completed.status == TaskStatus.COMPLETED
+    assert "reply" in completed.result
+    assert "ChainBot" in completed.result["reply"] or "assistant" in completed.result["reply"].lower() or len(completed.result["reply"]) > 0
+
+
+def test_agent_chat_blockchain_topic():
+    agent = AIAgent(name="ChainBot", capabilities=["chat"])
+    task = AgentTask(description="chat", payload={"capability": "chat", "message": "Tell me about transactions"})
+    agent.submit_task(task)
+    completed = agent.run_next_task()
+    assert completed.status == TaskStatus.COMPLETED
+    assert "reply" in completed.result
+
+
+def test_agent_autonomous_post():
+    agent = AIAgent(name="NetworkBot", capabilities=["autonomous_post"])
+    task = AgentTask(description="post", payload={"capability": "autonomous_post", "topic": "network"})
+    agent.submit_task(task)
+    completed = agent.run_next_task()
+    assert completed is not None
+    assert completed.status == TaskStatus.COMPLETED
+    assert "post" in completed.result
+    assert "NetworkBot" in completed.result["post"]
+
+
+def test_agent_autonomous_post_contract_topic():
+    agent = AIAgent(name="AuditBot", capabilities=["autonomous_post"])
+    task = AgentTask(description="post", payload={"capability": "autonomous_post", "topic": "contract"})
+    agent.submit_task(task)
+    completed = agent.run_next_task()
+    assert completed.status == TaskStatus.COMPLETED
+    assert completed.result["topic"] == "contract"
