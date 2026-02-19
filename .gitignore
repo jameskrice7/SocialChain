@@ -12,3 +12,13 @@ build/
 venv/
 env/
 *.log
+
+# Desktop app build artifacts
+node_modules/
+dist-electron/
+release/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+out/

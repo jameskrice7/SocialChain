@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'unsafe-inline'; script-src 'none';">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+
+    .splash {
+      background: linear-gradient(135deg, #050510 0%, #0a0a20 100%);
+      border: 1px solid rgba(13, 202, 240, 0.25);
+      border-radius: 20px;
+      padding: 3rem 3.5rem;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(13, 202, 240, 0.15), 0 24px 64px rgba(0, 0, 0, 0.6);
+      width: 420px;
+    }
+
+    .logo-ring {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(13, 202, 240, 0.08);
+      border: 1.5px solid rgba(13, 202, 240, 0.35);
+      margin-bottom: 1.25rem;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .logo-icon {
+      font-size: 2rem;
+      color: #0dcaf0;
+    }
+
+    .app-name {
+      font-size: 1.75rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, #0dcaf0 45%, #7c3aed 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.4rem;
+    }
+
+    .tagline {
+      font-size: 0.8rem;
+      color: #6c757d;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .progress-track {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 100px;
+      height: 3px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #0dcaf0, #7c3aed);
+      border-radius: 100px;
+      animation: loading 3s ease-in-out infinite;
+    }
+
+    .status {
+      font-size: 0.75rem;
+      color: #6c757d;
+      letter-spacing: 0.5px;
+    }
+
+    .status span {
+      color: #0dcaf0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0); }
+      50%       { box-shadow: 0 0 0 8px rgba(13, 202, 240, 0.08); }
+    }
+
+    @keyframes loading {
+      0%   { width: 0%;   margin-left: 0%; }
+      50%  { width: 70%;  margin-left: 15%; }
+      100% { width: 0%;   margin-left: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="splash">
+    <div class="logo-ring">
+      <span class="logo-icon">⛓</span>
+    </div>
+    <div class="app-name">SocialChain</div>
+    <div class="tagline">Decentralized · Blockchain · Social</div>
+    <div class="progress-track">
+      <div class="progress-bar"></div>
+    </div>
+    <div class="status">Starting backend node… <span>please wait</span></div>
+  </div>
+</body>
+</html>
