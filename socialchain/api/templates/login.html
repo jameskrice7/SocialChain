@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Login - SocialChain{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card bg-black border-secondary">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-4 text-info"><i class="bi bi-link-45deg"></i> SocialChain</h2>
+                <h5 class="text-center text-secondary mb-4">Sign in to your node</h5>
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Username</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" name="username" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Password</label>
+                        <input type="password" class="form-control bg-dark text-light border-secondary" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-info w-100 mt-2">Login</button>
+                </form>
+                <div class="text-center mt-3">
+                    <small class="text-secondary">No account? <a href="{{ url_for('auth.register') }}" class="text-info">Register</a></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
