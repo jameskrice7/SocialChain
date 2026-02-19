@@ -130,8 +130,18 @@ def update_social_links(did):
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data provided"}), 400
+    from urllib.parse import urlparse
     allowed = {"facebook", "linkedin", "instagram", "youtube"}
-    links = {k: v for k, v in data.items() if k in allowed}
+    links = {}
+    for k, v in data.items():
+        if k not in allowed:
+            continue
+        if not isinstance(v, str):
+            return jsonify({"error": f"Invalid value for {k}"}), 400
+        parsed = urlparse(v)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            return jsonify({"error": f"Invalid URL for {k}: must be http/https"}), 400
+        links[k] = v
     profile.metadata.setdefault("social_links", {}).update(links)
     return jsonify({"message": "Social links updated", "social_links": profile.metadata["social_links"]}), 200
 
@@ -150,12 +160,18 @@ def add_external_contact():
     profile = state.network_map.get_profile(owner_did)
     if not profile:
         return jsonify({"error": "Owner profile not found"}), 404
+    allowed_platforms = {"facebook", "linkedin", "instagram", "youtube"}
+    name = str(data["name"])[:128].strip()
+    platform = str(data["platform"]).lower()
+    if platform not in allowed_platforms:
+        return jsonify({"error": f"Platform must be one of {sorted(allowed_platforms)}"}), 400
+    platform_id = str(data.get("platform_id", ""))[:256].strip()
     contacts = profile.metadata.setdefault("external_contacts", [])
     contact = {
-        "name": data["name"],
-        "platform": data["platform"],
-        "platform_id": data.get("platform_id", ""),
-        "invited": data.get("invited", False),
+        "name": name,
+        "platform": platform,
+        "platform_id": platform_id,
+        "invited": bool(data.get("invited", False)),
     }
     contacts.append(contact)
     return jsonify({"message": "External contact added", "contact": contact}), 201
