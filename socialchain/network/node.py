@@ -54,6 +54,22 @@ class NetworkNode:
             except Exception as e:
                 logger.warning(f"Failed to sync with {did}: {e}")
         if longest_chain:
+            # Replace the local chain with the longer one from peers
+            from ..blockchain.block import Block
+            from ..blockchain.transaction import Transaction
+            new_chain = []
+            for block_data in longest_chain["chain"]:
+                txs = [Transaction.from_dict(tx) for tx in block_data["transactions"]]
+                block = Block(
+                    index=block_data["index"],
+                    transactions=txs,
+                    previous_hash=block_data["previous_hash"],
+                    nonce=block_data["nonce"],
+                    timestamp=block_data["timestamp"],
+                )
+                block.hash = block_data["hash"]
+                new_chain.append(block)
+            blockchain.chain = new_chain
             return True
         return False
 
