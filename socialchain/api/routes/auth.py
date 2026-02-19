@@ -28,6 +28,19 @@ def login():
             session["user_did"] = user.did
             session["username"] = user.username
             session["agent_type"] = user.agent_type
+            # Record login status on blockchain
+            from ...blockchain.transaction import Transaction
+            import time
+            tx = Transaction(
+                sender=user.did,
+                recipient="NETWORK",
+                data={"type": "status_update", "status": "online", "timestamp": time.time()},
+            )
+            state.blockchain.add_transaction(tx)
+            profile = state.network_map.get_profile(user.did)
+            if profile:
+                profile.metadata["last_verified"] = time.time()
+                profile.metadata["blockchain_status"] = "verified"
             return redirect(url_for("web.dashboard"))
         flash("Invalid username or password", "error")
     return render_template("login.html")
