@@ -1,0 +1,876 @@
+{% extends "base.html" %}
+{% block title %}My 3D Network – SocialChain{% endblock %}
+
+{% block content %}
+<style>
+/* ── 3D Network page ── */
+#sc-3d-network-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px);   /* full viewport minus navbar */
+    margin: -1rem -1.5rem 0;      /* bleed to container edges */
+    overflow: hidden;
+}
+
+/* ── Top bar ── */
+#sc-3d-topbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: .6rem 1.25rem;
+    background: rgba(5,5,16,.95);
+    border-bottom: 1px solid rgba(13,202,240,0.15);
+    z-index: 10;
+}
+
+/* ── Main area = graph + sidebar ── */
+#sc-3d-main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ── 3D Canvas wrapper ── */
+#sc-graph-wrapper {
+    flex: 1;
+    position: relative;
+    background: #050510;
+    overflow: hidden;
+}
+#sc-graph-wrapper canvas {
+    display: block;
+}
+
+/* ── Loading overlay ── */
+#sc-3d-loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(5,5,16,.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    z-index: 20;
+    font-size: .95rem;
+    color: #6c757d;
+    transition: opacity .4s;
+}
+
+/* ── Sidebar ── */
+#sc-3d-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: rgba(8,8,20,.97);
+    border-left: 1px solid rgba(13,202,240,0.12);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width .25s;
+    z-index: 5;
+}
+#sc-3d-sidebar.collapsed { width: 0; }
+#sc-sidebar-toggle {
+    position: absolute;
+    right: 300px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    background: rgba(13,202,240,0.12);
+    border: 1px solid rgba(13,202,240,0.3);
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    color: #0dcaf0;
+    padding: 8px 5px;
+    cursor: pointer;
+    transition: right .25s;
+    line-height: 1;
+}
+#sc-sidebar-toggle.collapsed { right: 0; border-radius: 0 6px 6px 0; border: 1px solid rgba(13,202,240,0.3); border-left: none; }
+
+.sc-3d-sidebar-section {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.sc-3d-sidebar-section h6 {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #6c757d;
+    margin-bottom: .6rem;
+}
+#sc-sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ── Node detail panel ── */
+#sc-node-detail-panel {
+    background: rgba(13,202,240,0.03);
+    border-bottom: 1px solid rgba(13,202,240,0.1);
+    padding: 1rem;
+}
+.sc-nd-avatar {
+    width: 46px; height: 46px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+/* ── Breadcrumb path ── */
+#sc-path-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: .4rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: .75rem;
+    color: #6c757d;
+    background: rgba(5,5,16,.6);
+    min-height: 32px;
+}
+.sc-path-crumb {
+    background: rgba(13,202,240,0.08);
+    border: 1px solid rgba(13,202,240,0.2);
+    color: #0dcaf0;
+    padding: 1px 10px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background .15s;
+}
+.sc-path-crumb:hover { background: rgba(13,202,240,0.18); }
+.sc-path-sep { color: rgba(255,255,255,0.2); }
+
+/* ── Stats chips ── */
+.sc-stat-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(13,202,240,0.05);
+    border: 1px solid rgba(13,202,240,0.1);
+    border-radius: 8px;
+    padding: .35rem .6rem;
+    min-width: 58px;
+}
+.sc-stat-chip .val { font-size: 1.1rem; font-weight: 700; color: #0dcaf0; line-height: 1.1; }
+.sc-stat-chip .lbl { font-size: .6rem; color: #6c757d; letter-spacing: .5px; text-transform: uppercase; }
+
+/* ── Search ── */
+#sc-search {
+    background: rgba(0,0,0,.4);
+    border: 1px solid rgba(255,255,255,.1);
+    color: #e0e0e0;
+    border-radius: 6px;
+    padding: .35rem .7rem;
+    font-size: .82rem;
+    width: 100%;
+}
+#sc-search:focus { outline: none; border-color: rgba(13,202,240,.4); }
+
+/* ── Depth control ── */
+.sc-depth-btn {
+    background: rgba(13,202,240,0.07);
+    border: 1px solid rgba(13,202,240,0.2);
+    border-radius: 6px;
+    color: #0dcaf0;
+    padding: 3px 12px;
+    font-size: .8rem;
+    cursor: pointer;
+    transition: background .15s;
+}
+.sc-depth-btn.active, .sc-depth-btn:hover {
+    background: rgba(13,202,240,0.2);
+    box-shadow: 0 0 8px rgba(13,202,240,.2);
+}
+
+/* ── Context tooltip ── */
+#sc-3d-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(8,12,24,.95);
+    border: 1px solid rgba(13,202,240,0.35);
+    color: #e0e0e0;
+    padding: 6px 12px;
+    border-radius: 7px;
+    font-size: .78rem;
+    z-index: 9999;
+    display: none;
+    max-width: 200px;
+    white-space: nowrap;
+}
+
+/* ── Pulse ring ── */
+@keyframes sc3dPulse {
+    0%,100%{box-shadow:0 0 0 0 rgba(13,202,240,.5)}
+    50%{box-shadow:0 0 0 8px rgba(13,202,240,0)}
+}
+
+/* ── Legend ── */
+.sc-legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+}
+</style>
+
+<div id="sc-3d-network-page">
+
+    <!-- ── Top bar ── -->
+    <div id="sc-3d-topbar">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div>
+                <span class="fw-bold text-info" style="font-size:.95rem;">
+                    <i class="bi bi-globe2"></i> My 3D Network
+                </span>
+                <span class="text-secondary ms-2" style="font-size:.72rem;">
+                    <code class="text-warning">{{ user_did[:32] }}…</code>
+                </span>
+            </div>
+            <!-- Stats chips -->
+            <div class="d-flex gap-2" id="sc-stat-chips">
+                <div class="sc-stat-chip"><span class="val" id="sc-stat-nodes">–</span><span class="lbl">Nodes</span></div>
+                <div class="sc-stat-chip"><span class="val" id="sc-stat-links">–</span><span class="lbl">Links</span></div>
+                <div class="sc-stat-chip"><span class="val" id="sc-stat-depth">1</span><span class="lbl">Depth</span></div>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- Depth buttons -->
+            <div class="d-flex gap-1 align-items-center">
+                <span class="text-secondary" style="font-size:.72rem;">DEPTH:</span>
+                <button class="sc-depth-btn active" data-depth="1" id="depth-btn-1">1</button>
+                <button class="sc-depth-btn"        data-depth="2" id="depth-btn-2">2</button>
+                <button class="sc-depth-btn"        data-depth="3" id="depth-btn-3">3</button>
+                <button class="sc-depth-btn"        data-depth="0" id="depth-btn-all">All</button>
+            </div>
+            <!-- View controls -->
+            <button class="sc-depth-btn" id="btn-reset-view" title="Reset camera">
+                <i class="bi bi-arrows-fullscreen"></i>
+            </button>
+            <button class="sc-depth-btn" id="btn-refresh" title="Refresh data">
+                <i class="bi bi-arrow-clockwise" id="refresh-icon"></i>
+            </button>
+            <!-- Link to 2D network -->
+            <a href="{{ url_for('web.network') }}" class="sc-depth-btn text-decoration-none" style="font-size:.78rem;">
+                <i class="bi bi-diagram-3"></i> 2D View
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Breadcrumb path ── -->
+    <div id="sc-path-bar">
+        <i class="bi bi-signpost-2 text-secondary me-1"></i>
+        <span id="sc-path-content" class="d-flex align-items-center gap-1 flex-wrap">
+            <span class="sc-path-crumb" data-idx="0">Root</span>
+        </span>
+    </div>
+
+    <!-- ── Main area ── -->
+    <div id="sc-3d-main">
+
+        <!-- Graph canvas -->
+        <div id="sc-graph-wrapper">
+            <div id="sc-3d-loading">
+                <div class="spinner-border text-info" style="width:2rem;height:2rem;"></div>
+                <span>Loading your network from the blockchain…</span>
+            </div>
+            <div id="sc-graph"></div>
+        </div>
+
+        <!-- Toggle sidebar button -->
+        <button id="sc-sidebar-toggle" title="Toggle sidebar">
+            <i class="bi bi-layout-sidebar-reverse" id="sidebar-toggle-icon"></i>
+        </button>
+
+        <!-- Sidebar -->
+        <div id="sc-3d-sidebar">
+            <div id="sc-sidebar-scroll">
+
+                <!-- Node detail -->
+                <div id="sc-node-detail-panel">
+                    <div class="d-flex align-items-center gap-2 text-secondary small mb-1">
+                        <i class="bi bi-cursor"></i> Click a node to inspect it
+                    </div>
+                    <div id="sc-nd-content" class="d-none">
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="sc-nd-avatar" id="sc-nd-avatar"></div>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="fw-bold text-light text-truncate" id="sc-nd-name"></div>
+                                <div id="sc-nd-badges" class="mt-1"></div>
+                            </div>
+                        </div>
+                        <div class="text-secondary mt-2" style="font-size:.68rem;word-break:break-all;" id="sc-nd-did"></div>
+                        <div id="sc-nd-meta" class="mt-2"></div>
+                        <div class="d-flex gap-2 mt-3 flex-wrap">
+                            <button class="sc-depth-btn" id="sc-nd-explore" style="font-size:.75rem;">
+                                <i class="bi bi-diagram-3"></i> Explore
+                            </button>
+                            <button class="sc-depth-btn" id="sc-nd-focus" style="font-size:.75rem;">
+                                <i class="bi bi-camera"></i> Focus
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="sc-3d-sidebar-section">
+                    <h6>Search Nodes</h6>
+                    <input type="text" id="sc-search" placeholder="Search by name or DID…">
+                    <div id="sc-search-results" class="mt-2"></div>
+                </div>
+
+                <!-- Legend -->
+                <div class="sc-3d-sidebar-section">
+                    <h6>Legend</h6>
+                    <div class="d-flex flex-column gap-2" style="font-size:.8rem;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="sc-legend-dot" style="background:#198754;box-shadow:0 0 6px #19875480;"></span>
+                            <span class="text-secondary">You (root node)</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="sc-legend-dot" style="background:#0dcaf0;box-shadow:0 0 6px #0dcaf080;"></span>
+                            <span class="text-secondary">Human SC Node</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="sc-legend-dot" style="background:#ffc107;box-shadow:0 0 6px #ffc10780;"></span>
+                            <span class="text-secondary">AI Agent</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="sc-legend-dot" style="background:none;border:1px dashed #6c757d;"></span>
+                            <span class="text-secondary">External Contact</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All nodes list -->
+                <div class="sc-3d-sidebar-section">
+                    <h6>All Nodes <span class="badge bg-secondary ms-1" id="sc-nodes-count-badge">0</span></h6>
+                    <div id="sc-nodes-list" style="max-height:300px;overflow-y:auto;font-size:.8rem;"></div>
+                </div>
+
+            </div>
+        </div><!-- /sidebar -->
+
+    </div><!-- /main -->
+
+</div><!-- /page -->
+
+<div id="sc-3d-tooltip"></div>
+{% endblock %}
+
+{% block scripts %}
+<!-- 3D Force Graph (Three.js bundled) -->
+<script src="https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
+
+<script>
+const USER_DID  = {{ user_did | tojson }};
+const USERNAME  = {{ username | tojson }};
+
+/* ─── State ────────────────────────────────────────────── */
+let rawNodes       = [];   // all nodes from API
+let rawLinks       = [];   // all links from API
+let allProfiles    = [];   // all profiles from API
+let focusedNodeId  = null; // currently focused node (fractal exploration)
+let currentDepth   = 1;    // hop depth to show from focused node
+let explorationPath = [];  // breadcrumb trail: [{id, label}]
+let graphInstance  = null;
+
+const USER_NODE_ID = USER_DID;
+
+/* ─── DOM refs ─────────────────────────────────────────── */
+const graphEl     = document.getElementById('sc-graph');
+const loadingEl   = document.getElementById('sc-3d-loading');
+const sidebar     = document.getElementById('sc-3d-sidebar');
+const sidebarToggle = document.getElementById('sc-sidebar-toggle');
+const toggleIcon  = document.getElementById('sidebar-toggle-icon');
+
+/* ─── Sidebar toggle ───────────────────────────────────── */
+sidebarToggle.addEventListener('click', () => {
+    const collapsed = sidebar.classList.toggle('collapsed');
+    sidebarToggle.classList.toggle('collapsed', collapsed);
+    toggleIcon.className = collapsed ? 'bi bi-layout-sidebar' : 'bi bi-layout-sidebar-reverse';
+    setTimeout(() => {
+        const w = graphEl.parentElement.clientWidth;
+        if (graphInstance && typeof graphInstance.width === 'function') graphInstance.width(w);
+    }, 280);
+});
+
+/* ─── Depth buttons ────────────────────────────────────── */
+document.querySelectorAll('[data-depth]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-depth]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentDepth = parseInt(btn.dataset.depth, 10);
+        document.getElementById('sc-stat-depth').textContent = currentDepth || '∞';
+        renderGraph();
+    });
+});
+
+/* ─── Load data ────────────────────────────────────────── */
+async function loadData() {
+    loadingEl.style.opacity = '1';
+    loadingEl.style.display = 'flex';
+    document.getElementById('refresh-icon').classList.add('spin');
+
+    try {
+        const [profRes, mapRes] = await Promise.all([
+            fetch('/api/social/profiles'),
+            fetch('/api/social/map')
+        ]);
+        if (profRes.ok) { const d = await profRes.json(); allProfiles = d.profiles || []; }
+        if (mapRes.ok) {
+            const d = await mapRes.json();
+            const adjList = d.map || {};
+
+            // Build profile lookup by DID
+            const profByDid = {};
+            allProfiles.forEach(p => { profByDid[p.did] = p; });
+
+            // Convert adjacency list {did: [did...]} → nodes + links
+            const nodeSet = new Set(Object.keys(adjList));
+            // Also include user node even if not in map yet
+            nodeSet.add(USER_NODE_ID);
+
+            rawNodes = [...nodeSet].map(did => {
+                const p = profByDid[did] || {};
+                return {
+                    did: did,
+                    _id: did,
+                    username: p.display_name || p.username || did.slice(-12),
+                    is_agent: p.device_type === 'agent',
+                    metadata: p.metadata || {}
+                };
+            });
+
+            rawLinks = [];
+            const seen = new Set();
+            Object.entries(adjList).forEach(([src, targets]) => {
+                (targets || []).forEach(tgt => {
+                    const key = [src, tgt].sort().join('→');
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        rawLinks.push({ source: src, target: tgt });
+                    }
+                });
+            });
+        }
+    } catch(e) {
+        console.warn('Network load error:', e);
+    }
+
+    document.getElementById('refresh-icon').classList.remove('spin');
+    renderGraph();
+    renderNodesList();
+}
+
+/* ─── Build sub-graph from a root with given depth ─────── */
+function buildSubGraph(rootId, depth) {
+    const idMap = new Map(rawNodes.map(n => [n.did || n.id, n]));
+
+    if (!depth) {
+        // depth=0 means show all
+        const nodes = rawNodes.map(n => ({ ...n, _id: n.did || n.id }));
+        const links = rawLinks.map(l => ({ ...l }));
+        return { nodes, links };
+    }
+
+    const visited = new Map();  // id -> hop distance
+    const queue   = [[rootId, 0]];
+    visited.set(rootId, 0);
+
+    while (queue.length) {
+        const [cur, d] = queue.shift();
+        if (d >= depth) continue;
+        rawLinks.forEach(l => {
+            const s = typeof l.source === 'object' ? l.source.id : l.source;
+            const t = typeof l.target === 'object' ? l.target.id : l.target;
+            if (s === cur && !visited.has(t)) { visited.set(t, d+1); queue.push([t, d+1]); }
+            if (t === cur && !visited.has(s)) { visited.set(s, d+1); queue.push([s, d+1]); }
+        });
+    }
+
+    const nodes = [...visited.keys()].map(id => {
+        const raw = idMap.get(id);
+        if (raw) return { ...raw, _id: id, _hop: visited.get(id) };
+        return { _id: id, did: id, username: id.slice(0, 12), _hop: visited.get(id) };
+    });
+    const nodeSet = new Set(nodes.map(n => n._id));
+    const links = rawLinks.filter(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        return nodeSet.has(s) && nodeSet.has(t);
+    });
+    return { nodes, links };
+}
+
+/* ─── Render graph: 3D if library available, else 2D D3 ── */
+function renderGraph() {
+    const rootId   = focusedNodeId || USER_NODE_ID;
+    const subGraph = buildSubGraph(rootId, currentDepth);
+
+    document.getElementById('sc-stat-nodes').textContent = subGraph.nodes.length;
+    document.getElementById('sc-stat-links').textContent = subGraph.links.length;
+
+    const wrapper = document.getElementById('sc-graph-wrapper');
+    const W = wrapper.clientWidth;
+    const H = wrapper.clientHeight || window.innerHeight - 140;
+
+    if (typeof ForceGraph3D !== 'undefined') {
+        render3D(subGraph, W, H);
+    } else {
+        render2DFallback(subGraph, W, H);
+    }
+}
+
+/* ─── 3D render using ForceGraph3D ────────────────────── */
+function render3D(subGraph, W, H) {
+    if (!graphInstance) {
+        graphInstance = ForceGraph3D()(graphEl)
+            .backgroundColor('#050510')
+            .nodeLabel(n => escHtml(n.username || n.did || n._id || ''))
+            .nodeColor(n => nodeColor(n))
+            .nodeVal(n => nodeSize(n))
+            .nodeResolution(16)
+            .linkColor(() => 'rgba(13,202,240,0.35)')
+            .linkWidth(0.4)
+            .linkOpacity(0.6)
+            .linkDirectionalArrowLength(3)
+            .linkDirectionalArrowRelPos(1)
+            .onNodeClick(onNodeClick)
+            .onNodeHover(onNodeHover)
+            .cooldownTicks(80);
+    }
+
+    graphInstance
+        .width(W)
+        .height(H)
+        .graphData({
+            nodes: subGraph.nodes.map(n => ({ id: n._id || n.did, ...n })),
+            links: subGraph.links.map(l => ({
+                source: typeof l.source === 'object' ? l.source.id : l.source,
+                target: typeof l.target === 'object' ? l.target.id : l.target
+            }))
+        });
+
+    graphInstance.onEngineStop(() => {
+        loadingEl.style.opacity = '0';
+        setTimeout(() => { loadingEl.style.display = 'none'; }, 400);
+    });
+}
+
+/* ─── 2D D3 fallback (when 3D library unavailable) ─────── */
+let d3Sim = null;
+function render2DFallback(subGraph, W, H) {
+    // Clear previous graph
+    d3.select(graphEl).selectAll('*').remove();
+
+    if (d3Sim) { d3Sim.stop(); d3Sim = null; }
+
+    const nodes = subGraph.nodes.map(n => ({ ...n, id: n._id || n.did }));
+    const links = subGraph.links.map(l => ({
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target
+    }));
+
+    const svg = d3.select(graphEl).append('svg')
+        .attr('width', W).attr('height', H)
+        .style('background', '#050510')
+        .style('display', 'block');
+
+    svg.append('defs').append('marker')
+        .attr('id', 'arr3d').attr('viewBox', '0 -4 8 8')
+        .attr('refX', 20).attr('refY', 0)
+        .attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto')
+        .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#0dcaf050');
+
+    const g = svg.append('g');
+    svg.call(d3.zoom().scaleExtent([0.1, 6])
+        .on('zoom', e => g.attr('transform', e.transform)));
+
+    const link = g.append('g').selectAll('line').data(links).join('line')
+        .attr('stroke', '#0dcaf050').attr('stroke-width', 1)
+        .attr('marker-end', 'url(#arr3d)');
+
+    const tooltip = document.getElementById('sc-3d-tooltip');
+    const node = g.append('g').selectAll('g').data(nodes).join('g')
+        .style('cursor', 'pointer')
+        .call(d3.drag()
+            .on('start', (e, d) => { if (!e.active) d3Sim.alphaTarget(.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end',   (e, d) => { if (!e.active) d3Sim.alphaTarget(0); d.fx = null; d.fy = null; }))
+        .on('click', (e, d) => onNodeClick(d))
+        .on('mousemove', (e, d) => {
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX + 14) + 'px';
+            tooltip.style.top  = (e.clientY - 8) + 'px';
+            tooltip.textContent = escHtml(d.username || d._id || '');
+        })
+        .on('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    node.append('circle')
+        .attr('r', d => d.id === USER_NODE_ID ? 14 : (d._hop === 1 ? 11 : 8))
+        .attr('fill', d => nodeColor(d))
+        .attr('fill-opacity', .85)
+        .attr('stroke', d => nodeColor(d))
+        .attr('stroke-width', 1.5);
+
+    node.append('text')
+        .attr('dy', d => (d.id === USER_NODE_ID ? 14 : 8) + 12)
+        .attr('text-anchor', 'middle')
+        .attr('fill', d => nodeColor(d))
+        .attr('font-size', 9)
+        .text(d => { const n = d.username || d._id || ''; return n.length > 12 ? n.slice(0,11)+'…' : n; });
+
+    d3Sim = d3.forceSimulation(nodes)
+        .force('link',   d3.forceLink(links).id(d => d.id).distance(70))
+        .force('charge', d3.forceManyBody().strength(-180))
+        .force('center', d3.forceCenter(W/2, H/2))
+        .force('collide', d3.forceCollide(18))
+        .on('tick', () => {
+            link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+            node.attr('transform', d => `translate(${d.x},${d.y})`);
+        })
+        .on('end', () => {
+            loadingEl.style.opacity = '0';
+            setTimeout(() => { loadingEl.style.display = 'none'; }, 400);
+        });
+}
+
+/* ─── Node colors ──────────────────────────────────────── */
+function nodeColor(n) {
+    const id = n._id || n.did || n.id;
+    if (id === USER_NODE_ID) return '#198754';
+    if (n.is_agent)          return '#ffc107';
+    if (n.type === 'agent')  return '#ffc107';
+    if (n.type === 'external') return '#6c757d';
+    return '#0dcaf0';
+}
+function nodeSize(n) {
+    const id = n._id || n.did || n.id;
+    if (id === USER_NODE_ID)   return 4;
+    if (n._hop === 1)          return 2.5;
+    if (n.is_agent)            return 2;
+    return 1.2;
+}
+
+/* ─── Node click → fractal exploration ─────────────────── */
+function onNodeClick(node) {
+    const id    = node._id || node.did || node.id;
+    const label = node.username || (id ? id.slice(0, 14) + '…' : 'Node');
+
+    // Update exploration path
+    const existingIdx = explorationPath.findIndex(p => p.id === id);
+    if (existingIdx >= 0) {
+        explorationPath = explorationPath.slice(0, existingIdx + 1);
+    } else {
+        explorationPath.push({ id, label });
+    }
+    renderBreadcrumb();
+
+    // Focus camera
+    if (graphInstance) {
+        graphInstance.cameraPosition(
+            { x: node.x, y: node.y, z: (node.z || 0) + 80 },
+            node,
+            800
+        );
+    }
+
+    // Show detail
+    showNodeDetail(node);
+}
+
+/* ─── Node hover tooltip ───────────────────────────────── */
+const tooltip = document.getElementById('sc-3d-tooltip');
+function onNodeHover(node) {
+    if (!node) { tooltip.style.display = 'none'; return; }
+    tooltip.textContent = node.username || node._id || '';
+    tooltip.style.display = 'block';
+}
+document.addEventListener('mousemove', e => {
+    if (tooltip.style.display === 'block') {
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top  = (e.clientY - 8) + 'px';
+    }
+});
+
+/* ─── Show node detail in sidebar ──────────────────────── */
+function showNodeDetail(node) {
+    const id = node._id || node.did || node.id;
+    const isSelf = id === USER_NODE_ID;
+    const isAgent = !!(node.is_agent || node.type === 'agent');
+    const isExt   = node.type === 'external';
+
+    const avatarEl = document.getElementById('sc-nd-avatar');
+    avatarEl.style.background = isSelf ? 'rgba(25,135,84,0.2)' : isAgent ? 'rgba(255,193,7,0.15)' : 'rgba(13,202,240,0.1)';
+    avatarEl.style.border = `1px solid ${isSelf ? '#19875460' : isAgent ? '#ffc10740' : '#0dcaf040'}`;
+    avatarEl.innerHTML = `<i class="bi ${isAgent ? 'bi-robot text-warning' : isSelf ? 'bi-person-fill text-success' : 'bi-person-circle text-info'}"></i>`;
+
+    document.getElementById('sc-nd-name').textContent = node.username || node.display_name || id.slice(0, 20);
+    document.getElementById('sc-nd-did').textContent  = id;
+    document.getElementById('sc-nd-badges').innerHTML =
+        (isSelf  ? '<span class="badge bg-success me-1">You</span>' : '') +
+        (isAgent ? '<span class="badge bg-warning text-dark me-1">AI Agent</span>' : '') +
+        (isExt   ? '<span class="badge bg-secondary me-1">External</span>' : '') +
+        (!isSelf && !isAgent && !isExt ? '<span class="badge bg-info text-dark">SC Node</span>' : '');
+
+    const meta = node.metadata || {};
+    const metaHtml = Object.entries(meta)
+        .filter(([k]) => !['external_contacts','social_links'].includes(k))
+        .slice(0, 5)
+        .map(([k,v]) => `<div class="d-flex gap-2"><span class="text-secondary">${escHtml(k)}:</span><span class="text-light">${escHtml(String(v).slice(0,40))}</span></div>`)
+        .join('');
+    document.getElementById('sc-nd-meta').innerHTML = metaHtml
+        ? `<div style="font-size:.72rem;" class="d-flex flex-column gap-1">${metaHtml}</div>` : '';
+
+    document.getElementById('sc-nd-content').classList.remove('d-none');
+
+    // Explore button: focus this node and re-render sub-graph
+    document.getElementById('sc-nd-explore').onclick = () => {
+        focusedNodeId = id;
+        loadingEl.style.opacity = '1';
+        loadingEl.style.display = 'flex';
+        renderGraph();
+        renderBreadcrumb();
+    };
+    // Focus camera
+    document.getElementById('sc-nd-focus').onclick = () => {
+        if (graphInstance) {
+            graphInstance.cameraPosition({ x: node.x, y: node.y, z: (node.z||0)+80 }, node, 600);
+        }
+    };
+}
+
+/* ─── Breadcrumb ───────────────────────────────────────── */
+function renderBreadcrumb() {
+    const content = document.getElementById('sc-path-content');
+    content.innerHTML = explorationPath.map((p, i) =>
+        `<span class="sc-path-crumb" data-idx="${i}">${escHtml(p.label)}</span>` +
+        (i < explorationPath.length - 1 ? '<span class="sc-path-sep">/</span>' : '')
+    ).join('');
+    content.querySelectorAll('[data-idx]').forEach(el => {
+        el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.idx, 10);
+            explorationPath = explorationPath.slice(0, idx + 1);
+            focusedNodeId = explorationPath[explorationPath.length - 1].id;
+            loadingEl.style.opacity = '1';
+            loadingEl.style.display = 'flex';
+            renderGraph();
+            renderBreadcrumb();
+        });
+    });
+}
+
+/* ─── Nodes list in sidebar ────────────────────────────── */
+function renderNodesList() {
+    const el = document.getElementById('sc-nodes-list');
+    document.getElementById('sc-nodes-count-badge').textContent = rawNodes.length;
+    if (!rawNodes.length) { el.innerHTML = '<div class="text-secondary small">No nodes loaded.</div>'; return; }
+
+    el.innerHTML = rawNodes.slice(0, 60).map(n => {
+        const id = n.did || n.id;
+        const isSelf  = id === USER_NODE_ID;
+        const isAgent = !!(n.is_agent);
+        const color   = isSelf ? '#198754' : isAgent ? '#ffc107' : '#0dcaf0';
+        return `<div class="sc-node-list-item d-flex align-items-center gap-2 py-1 px-1 rounded"
+                     style="cursor:pointer;border-bottom:1px solid rgba(255,255,255,.03);"
+                     data-did="${escHtml(id)}">
+            <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+            <span class="text-light text-truncate">${escHtml(n.username || n.display_name || id.slice(0,14))}</span>
+            ${isSelf ? '<span class="badge bg-success ms-auto" style="font-size:.6rem;">You</span>' : ''}
+            ${isAgent ? '<span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">Agent</span>' : ''}
+        </div>`;
+    }).join('') + (rawNodes.length > 60 ? `<div class="text-secondary mt-1" style="font-size:.7rem;">+ ${rawNodes.length - 60} more…</div>` : '');
+
+    el.querySelectorAll('[data-did]').forEach(item => {
+        item.addEventListener('click', () => {
+            const did = item.dataset.did;
+            const node = rawNodes.find(n => (n.did || n.id) === did);
+            if (node && graphInstance) {
+                const gNode = graphInstance.graphData().nodes.find(n => n.id === did);
+                if (gNode) {
+                    graphInstance.cameraPosition({ x: gNode.x, y: gNode.y, z: (gNode.z||0)+80 }, gNode, 800);
+                    showNodeDetail({ ...node, _id: did });
+                }
+            }
+        });
+    });
+}
+
+/* ─── Search ────────────────────────────────────────────── */
+document.getElementById('sc-search').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    const res = document.getElementById('sc-search-results');
+    if (!q) { res.innerHTML = ''; return; }
+    const matches = rawNodes.filter(n =>
+        (n.username || '').toLowerCase().includes(q) ||
+        (n.did || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+    if (!matches.length) { res.innerHTML = '<div class="text-secondary small">No results.</div>'; return; }
+    res.innerHTML = matches.map(n => {
+        const id = n.did || n.id;
+        return `<div class="d-flex align-items-center gap-2 py-1 px-1 rounded text-light small"
+                     style="cursor:pointer;border-bottom:1px solid rgba(255,255,255,.03);"
+                     data-did="${escHtml(id)}">
+            <i class="bi bi-circle-fill" style="font-size:.4rem;color:#0dcaf0;"></i>
+            ${escHtml(n.username || id.slice(0,20))}
+        </div>`;
+    }).join('');
+    res.querySelectorAll('[data-did]').forEach(item => {
+        item.addEventListener('click', () => {
+            const did = item.dataset.did;
+            const node = rawNodes.find(n => (n.did || n.id) === did);
+            if (node && graphInstance) {
+                const gNode = graphInstance.graphData().nodes.find(n => n.id === did);
+                if (gNode) graphInstance.cameraPosition({ x: gNode.x, y: gNode.y, z: (gNode.z||0)+80 }, gNode, 800);
+            }
+        });
+    });
+});
+
+/* ─── Reset view ────────────────────────────────────────── */
+document.getElementById('btn-reset-view').addEventListener('click', () => {
+    focusedNodeId   = null;
+    explorationPath = [];
+    document.getElementById('sc-path-content').innerHTML = '<span class="sc-path-crumb">Root</span>';
+    loadingEl.style.opacity = '1';
+    loadingEl.style.display = 'flex';
+    renderGraph();
+});
+
+/* ─── Refresh ───────────────────────────────────────────── */
+document.getElementById('btn-refresh').addEventListener('click', () => { loadData(); });
+
+/* ─── Responsive resize ─────────────────────────────────── */
+window.addEventListener('resize', () => {
+    const w = document.getElementById('sc-graph-wrapper').clientWidth;
+    const h = document.getElementById('sc-graph-wrapper').clientHeight;
+    if (graphInstance && typeof graphInstance.width === 'function') {
+        graphInstance.width(w).height(h);
+    } else if (d3Sim) {
+        renderGraph();  // re-render 2D on resize
+    }
+});
+
+/* ─── Utility ───────────────────────────────────────────── */
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ─── Init ──────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    // Seed breadcrumb with "You" root
+    explorationPath = [{ id: USER_NODE_ID, label: USERNAME || 'You' }];
+    renderBreadcrumb();
+    loadData();
+});
+</script>
+{% endblock %}
