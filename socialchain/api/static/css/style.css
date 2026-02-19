@@ -1,0 +1,40 @@
+body {
+    min-height: 100vh;
+}
+
+.block-card {
+    background: #0a0a0a;
+    transition: border-color 0.2s;
+}
+
+.block-card:hover {
+    border-color: #ffc107 !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: #1a1a1a;
+    color: #fff;
+    border-color: #0dcaf0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 202, 240, 0.15);
+}
+
+code {
+    color: #ffc107;
+}
+
+.card {
+    border-radius: 8px;
+}
+
+.navbar-brand {
+    letter-spacing: 1px;
+}
+
+#network-svg {
+    background: #0a0a0a;
+}
+
+.list-group-item-action:hover {
+    background-color: #1a1a2e !important;
+}

@@ -1,0 +1,70 @@
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+from ..auth import create_user
+from ...social.profile import Profile, DeviceType
+
+auth_bp = Blueprint("auth", __name__)
+
+
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user_did" not in session:
+            return redirect(url_for("auth.login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@auth_bp.route("/login", methods=["GET", "POST"])
+def login():
+    if "user_did" in session:
+        return redirect(url_for("web.dashboard"))
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        state = current_app.app_state
+        user = state.user_registry.get(username)
+        if user and user.check_password(password):
+            session["user_did"] = user.did
+            session["username"] = user.username
+            session["agent_type"] = user.agent_type
+            return redirect(url_for("web.dashboard"))
+        flash("Invalid username or password", "error")
+    return render_template("login.html")
+
+
+@auth_bp.route("/register", methods=["GET", "POST"])
+def register():
+    if "user_did" in session:
+        return redirect(url_for("web.dashboard"))
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+        agent_type = request.form.get("agent_type", "human")
+        state = current_app.app_state
+        if not username or not password:
+            flash("Username and password are required", "error")
+        elif password != confirm:
+            flash("Passwords do not match", "error")
+        elif username in state.user_registry:
+            flash("Username already taken", "error")
+        else:
+            user = create_user(username, password, agent_type)
+            state.user_registry[username] = user
+            state.did_to_username[user.did] = username
+            # Auto-create a profile for the user
+            dtype = DeviceType.AGENT if agent_type == "ai" else DeviceType.HUMAN
+            profile = Profile(did=user.did, display_name=username, device_type=dtype)
+            state.network_map.add_profile(profile)
+            session["user_did"] = user.did
+            session["username"] = user.username
+            session["agent_type"] = user.agent_type
+            return redirect(url_for("web.dashboard"))
+    return render_template("register.html")
+
+
+@auth_bp.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("auth.login"))

@@ -69,3 +69,31 @@ def update_request(request_id):
         return jsonify({"error": f"Invalid status: {data['status']}"}), 400
     state.social_requests[request_id].status = new_status
     return jsonify({"message": "Status updated", "request": state.social_requests[request_id].to_dict()}), 200
+
+
+@social_bp.route("/api/social/profiles/<path:did>", methods=["GET"])
+def get_profile(did):
+    state = current_app.app_state
+    profile = state.network_map.get_profile(did)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+    connections = state.network_map.get_connections(did)
+    data = profile.to_dict()
+    data["connections"] = connections
+    return jsonify({"profile": data}), 200
+
+
+@social_bp.route("/api/social/connections", methods=["POST"])
+def add_connection():
+    state = current_app.app_state
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    did_a = data.get("did_a")
+    did_b = data.get("did_b")
+    if not did_a or not did_b:
+        return jsonify({"error": "Missing did_a or did_b"}), 400
+    ok = state.network_map.add_connection(did_a, did_b)
+    if not ok:
+        return jsonify({"error": "One or both profiles not found"}), 404
+    return jsonify({"message": f"Connection added between {did_a} and {did_b}"}), 201

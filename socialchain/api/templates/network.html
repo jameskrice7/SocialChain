@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Network - SocialChain{% endblock %}
+{% block content %}
+<div class="row g-3">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h4 class="text-info mb-0"><i class="bi bi-diagram-3"></i> Network Visualization</h4>
+        <button class="btn btn-sm btn-outline-info" id="refresh-btn"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div class="col-12">
+        <div class="card bg-black border-secondary">
+            <div class="card-body p-0">
+                <div id="network-legend" class="p-2 border-bottom border-secondary d-flex gap-3">
+                    <span class="text-secondary small"><i class="bi bi-circle-fill text-info"></i> Human</span>
+                    <span class="text-secondary small"><i class="bi bi-circle-fill text-warning"></i> AI Agent</span>
+                    <span class="text-secondary small"><i class="bi bi-circle-fill text-success"></i> You</span>
+                </div>
+                <svg id="network-svg" width="100%" style="height:500px;"></svg>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-black border-secondary">
+            <div class="card-header border-secondary"><i class="bi bi-people"></i> All Agents</div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" id="agents-list" style="max-height:300px;overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card bg-black border-secondary">
+            <div class="card-header border-secondary"><i class="bi bi-info-circle"></i> Selected Node</div>
+            <div class="card-body" id="node-detail">
+                <p class="text-secondary">Click a node in the graph to see details.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const USER_DID = "{{ user_did }}";
+let networkData = {profiles: [], map: {}};
+
+async function loadNetwork() {
+    const [profilesRes, mapRes] = await Promise.all([
+        fetch('/api/social/profiles'),
+        fetch('/api/social/map')
+    ]);
+    const profilesData = await profilesRes.json();
+    const mapData = await mapRes.json();
+    networkData.profiles = profilesData.profiles || [];
+    networkData.map = mapData.map || {};
+    renderNetwork();
+    renderAgentsList();
+}
+
+function renderAgentsList() {
+    const list = document.getElementById('agents-list');
+    list.innerHTML = '';
+    networkData.profiles.forEach(p => {
+        const a = document.createElement('a');
+        a.href = `/profile/${p.did}`;
+        a.className = 'list-group-item list-group-item-action bg-dark border-secondary text-light py-2';
+        const isYou = p.did === USER_DID;
+        const icon = p.device_type === 'agent' ? 'bi-robot text-warning' : 'bi-person-circle text-info';
+        a.innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi ${icon}"></i>
+                <div>
+                    <div class="small fw-bold">${p.display_name}${isYou ? ' <span class="badge bg-success">You</span>' : ''}</div>
+                    <div class="text-secondary" style="font-size:0.65rem;">${p.did.substring(0,40)}...</div>
+                </div>
+            </div>
+        `;
+        list.appendChild(a);
+    });
+    if (networkData.profiles.length === 0) {
+        list.innerHTML = '<div class="p-3 text-secondary small">No agents registered yet.</div>';
+    }
+}
+
+function renderNetwork() {
+    const svg = d3.select('#network-svg');
+    svg.selectAll('*').remove();
+    const width = document.getElementById('network-svg').clientWidth || 800;
+    const height = 500;
+
+    const profiles = networkData.profiles;
+    const map = networkData.map;
+
+    if (profiles.length === 0) {
+        svg.append('text').attr('x', width/2).attr('y', height/2)
+            .attr('text-anchor', 'middle').attr('fill', '#6c757d')
+            .text('No agents registered. Register to see the network.');
+        return;
+    }
+
+    // Build nodes and links
+    const nodes = profiles.map(p => ({
+        id: p.did,
+        name: p.display_name,
+        type: p.device_type,
+        isMe: p.did === USER_DID
+    }));
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const linksSet = new Set();
+    const links = [];
+    Object.entries(map).forEach(([did, conns]) => {
+        conns.forEach(connDid => {
+            if (nodeIds.has(did) && nodeIds.has(connDid)) {
+                const key = [did, connDid].sort().join('|');
+                if (!linksSet.has(key)) {
+                    linksSet.add(key);
+                    links.push({source: did, target: connDid});
+                }
+            }
+        });
+    });
+
+    const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide(30));
+
+    const g = svg.append('g');
+
+    const link = g.append('g').selectAll('line')
+        .data(links).enter().append('line')
+        .attr('stroke', '#495057').attr('stroke-width', 1.5);
+
+    const node = g.append('g').selectAll('g')
+        .data(nodes).enter().append('g')
+        .style('cursor', 'pointer')
+        .call(d3.drag()
+            .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+            .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+        )
+        .on('click', (event, d) => showNodeDetail(d));
+
+    node.append('circle')
+        .attr('r', d => d.isMe ? 18 : 14)
+        .attr('fill', d => d.isMe ? '#198754' : (d.type === 'agent' ? '#ffc107' : '#0dcaf0'))
+        .attr('stroke', '#212529').attr('stroke-width', 2);
+
+    node.append('text')
+        .attr('dy', '0.35em').attr('text-anchor', 'middle')
+        .attr('font-size', '9px').attr('fill', '#212529').attr('font-weight', 'bold')
+        .text(d => d.name.substring(0, 6));
+
+    node.append('title').text(d => d.name + '\n' + d.id);
+
+    simulation.on('tick', () => {
+        link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+    // Zoom
+    svg.call(d3.zoom().scaleExtent([0.3, 3]).on('zoom', (event) => g.attr('transform', event.transform)));
+}
+
+function showNodeDetail(node) {
+    const detail = document.getElementById('node-detail');
+    const isMe = node.id === USER_DID;
+    const conns = networkData.map[node.id] || [];
+    detail.innerHTML = `
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <i class="bi ${node.type === 'agent' ? 'bi-robot text-warning' : 'bi-person-circle text-info'} display-5"></i>
+            <div>
+                <h5 class="mb-0 text-light">${node.name} ${isMe ? '<span class="badge bg-success">You</span>' : ''}</h5>
+                <span class="badge ${node.type === 'agent' ? 'bg-warning text-dark' : 'bg-info text-dark'}">${node.type.toUpperCase()}</span>
+            </div>
+        </div>
+        <div class="mb-2">
+            <div class="text-secondary small">DID</div>
+            <code class="text-warning" style="font-size:0.65rem;word-break:break-all;">${node.id}</code>
+        </div>
+        <div class="mb-2">
+            <div class="text-secondary small">Connections: ${conns.length}</div>
+        </div>
+        <a href="/profile/${node.id}" class="btn btn-sm btn-outline-info mt-2">View Full Profile</a>
+    `;
+}
+
+document.getElementById('refresh-btn').addEventListener('click', loadNetwork);
+loadNetwork();
+</script>
+{% endblock %}
