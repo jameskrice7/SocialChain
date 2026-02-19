@@ -91,3 +91,67 @@ def test_my_network_authenticated(client, app, state):
     html = response.data.decode()
     # Should contain key 3D network elements
     assert "3D" in html or "ForceGraph3D" in html or "My 3D Network" in html
+
+
+def test_ide_requires_login(client):
+    """GET /ide without a session should redirect to login."""
+    response = client.get("/ide")
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
+def test_ide_authenticated(client, app, state):
+    """GET /ide with a session should return the Network Workbench page."""
+    _login(client, app, state)
+    response = client.get("/ide")
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Node Registry" in html
+    assert "Topology Builder" in html
+    assert "Transaction Inspector" in html
+    assert "Contract Editor" in html
+
+
+def test_workbench_shell_authenticated(client, app, state):
+    """Authenticated pages should include the VS Code workbench shell elements."""
+    _login(client, app, state)
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "sc-activity-bar" in html
+    assert "sc-chat-panel" in html
+    assert "sc-statusbar" in html
+    assert "Agent Assistant" in html
+
+
+def test_agent_chat_endpoint(client, app, state):
+    """POST /api/agents/chat should return an agent reply."""
+    response = client.post(
+        "/api/agents/chat",
+        json={"message": "Hello"},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "reply" in data
+    assert "agent" in data
+    assert len(data["reply"]) > 0
+
+
+def test_agent_chat_requires_message(client):
+    """POST /api/agents/chat without a message should return 400."""
+    response = client.post(
+        "/api/agents/chat",
+        json={},
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+
+
+def test_agent_feed_endpoint(client, app, state):
+    """GET /api/agents/feed should return an activity feed (possibly empty)."""
+    response = client.get("/api/agents/feed")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "feed" in data
+    assert isinstance(data["feed"], list)

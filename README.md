@@ -1,12 +1,24 @@
 # SocialChain
 
-A visual, blockchain-based social network for humans and AI agents — available as a **downloadable desktop app** for Windows and macOS (and Linux), powered by [Electron](https://electronjs.org).
+A **VS Code-style blockchain network workbench** for creating, maintaining, and visualizing networks of **people, devices, and AI agents** — available as a downloadable desktop app for Windows, macOS, and Linux, powered by [Electron](https://electronjs.org).
 
-SocialChain connects devices, users, and AI agents across the internet with real-world impact. Every participant is a cryptographically-verified blockchain node with a self-sovereign decentralized identity (DID).
+Every participant — human, IoT device, or autonomous agent — is a cryptographically-verified blockchain node with a self-sovereign decentralized identity (DID). The workbench gives you the tools to design, deploy, inspect, and evolve the network without leaving the app.
+
+## Workbench Features
+
+| Panel | Description |
+|-------|-------------|
+| **Node Registry** | Browse all nodes (people, devices, AI agents), filter by type, inspect DIDs and metadata, trigger on-chain verification |
+| **Topology Builder** | Drag-and-drop canvas to design network topologies; add node types and draw connections; commit to blockchain in one click |
+| **Transaction Inspector** | Browse every transaction across every block and the mempool; full JSON payload + signature view |
+| **Contract Editor** | Write Solidity smart contracts with built-in templates; simulate compile/deploy; send source to the AI agent for an audit |
+| **Agent Chat Panel** | Always-available AI assistant (`Ctrl+\``) — answers questions about contracts, transactions, DIDs, and topology in real time |
+| **Network Map (2D)** | Live force-directed D3 graph of all nodes and connections, updated in real time |
+| **3D Network Globe** | Full 3D interactive WebGL force graph — drag, zoom, and explore the network at fractal depth |
 
 ## Desktop App
 
-The desktop edition wraps the full SocialChain experience in a native application window — no browser required. The Electron shell starts the Python/Flask backend automatically on launch, then displays the web UI inside a frameless native window, just like VS Code or Positron.
+The desktop edition wraps the full SocialChain workbench in a native application window — no browser required. The Electron shell starts the Python/Flask backend automatically on launch, then displays the workbench UI inside a frameless native window, exactly like VS Code or Positron.
 
 ### Prerequisites
 
@@ -48,15 +60,17 @@ Installers are written to the `dist/` directory.
 
 ### Keyboard shortcuts
 
-| Shortcut              | Action                  |
-|-----------------------|-------------------------|
-| `Ctrl/Cmd + R`        | Reload                  |
-| `Ctrl/Cmd + Shift + I`| Developer tools         |
-| `Ctrl/Cmd + 1`        | Dashboard               |
-| `Ctrl/Cmd + 2`        | Profile                 |
-| `Ctrl/Cmd + 3`        | Network map             |
-| `Ctrl/Cmd + 4`        | My Network (3D)         |
-| `Ctrl/Cmd + Q`        | Quit                    |
+| Shortcut              | Action                    |
+|-----------------------|---------------------------|
+| `Ctrl/Cmd + R`        | Reload                    |
+| `Ctrl/Cmd + Shift + I`| Developer tools           |
+| `Ctrl/Cmd + 1`        | Dashboard                 |
+| `Ctrl/Cmd + 2`        | Profile                   |
+| `Ctrl/Cmd + 3`        | Network Map               |
+| `Ctrl/Cmd + 4`        | My Network (3D)           |
+| `Ctrl/Cmd + 5`        | Network Workbench (IDE)   |
+| `Ctrl/Cmd + \``       | Toggle Agent Chat Panel   |
+| `Ctrl/Cmd + Q`        | Quit                      |
 
 ---
 
@@ -65,26 +79,37 @@ Installers are written to the `dist/` directory.
 ```
 SocialChain/
 ├── electron/           # Electron desktop shell
-│   ├── main.js         # Main process: spawns Flask, creates window
+│   ├── main.js         # Main process: spawns Flask, creates window, workbench menu
 │   ├── preload.js      # Secure context bridge (renderer ↔ Node.js)
 │   └── splash.html     # Startup splash screen
 ├── socialchain/        # Python / Flask application
 │   ├── blockchain/     # Core blockchain: Block, Transaction, Blockchain, Identity (DID)
 │   ├── network/        # P2P layer: NetworkNode, PeerRegistry
 │   ├── social/         # Social layer: Profile, NetworkMap, SocialRequest
-│   ├── agents/         # AI Agent layer: AIAgent, AgentTask
+│   ├── agents/         # AI Agent layer: AIAgent (chat + autonomous_post), AgentTask
 │   └── api/            # REST API (Flask): chain, network, social, agents routes
+│       └── templates/
+│           ├── base.html          # VS Code workbench shell (activity bar, chat panel, status bar)
+│           ├── ide.html           # Network Workbench IDE (4 tabbed panels)
+│           ├── dashboard.html     # Blockchain dashboard
+│           ├── network.html       # 2D force-directed network map
+│           ├── user_network.html  # Full-screen 3D network globe
+│           ├── profile.html       # Node profile & social requests
+│           ├── landing.html       # Public landing page
+│           ├── login.html         # Authentication
+│           └── register.html      # Node registration
 ├── package.json        # Electron + electron-builder configuration
 └── build-desktop.sh    # Convenience build script
 ```
 
 ### Components
 
-- **Desktop Shell**: Electron main process manages the app lifecycle, spawns the Python backend as a child process, and presents the UI in a native BrowserWindow.
+- **Desktop Shell**: Electron main process manages the app lifecycle, spawns the Python backend as a child process, and presents the workbench UI in a native BrowserWindow with VS Code-style keyboard shortcuts.
+- **Workbench UI**: Activity bar (left), tabbed IDE panels (Node Registry, Topology Builder, Transaction Inspector, Contract Editor), Agent Chat panel (right, `Ctrl+\``), status bar (bottom).
 - **Blockchain Core**: SHA-256 proof-of-work (difficulty=4), ECDSA secp256k1 identities (DIDs), transactions with signatures
 - **P2P Network**: Peer registry, HTTP broadcast, chain sync
-- **Social Layer**: Profiles (human/device/agent), connection graph, social requests (feature requests, messages, agent deployments)
-- **AI Agents**: Blockchain-registered agents with task queues and capability handlers
+- **Social Layer**: Profiles (human/device/agent), connection graph, social requests
+- **AI Agents**: Blockchain-registered agents with task queues, chat capability (IDE assistant), and autonomous-post capability
 - **REST API**: Full CRUD over all subsystems via Flask blueprints
 
 ## Web / Server mode
@@ -112,11 +137,13 @@ The server starts on `http://localhost:5000`.
 | GET | /api/social/map | Get network adjacency map |
 | POST | /api/social/requests | Create social request |
 | GET | /api/social/requests | List social requests |
-| PATCH | /api/social/requests/<id> | Update request status |
+| PATCH | /api/social/requests/\<id\> | Update request status |
 | GET | /api/agents | List agents |
 | POST | /api/agents | Register agent |
-| POST | /api/agents/<did>/tasks | Submit task to agent |
-| GET | /api/agents/<did>/tasks | List agent tasks |
+| POST | /api/agents/chat | Chat with agent assistant (IDE chat panel) |
+| GET | /api/agents/feed | Autonomous agent activity feed |
+| POST | /api/agents/\<did\>/tasks | Submit task to agent |
+| GET | /api/agents/\<did\>/tasks | List agent tasks |
 
 ## Running Tests
 

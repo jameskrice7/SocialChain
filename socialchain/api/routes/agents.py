@@ -66,11 +66,12 @@ def agent_chat():
 
 @agents_bp.route("/api/agents/feed", methods=["GET"])
 def agent_feed():
-    """Return recent autonomous-post activity from all registered agents."""
+    """Return recent autonomous-post activity from registered agents (max 3 agents)."""
     state = current_app.app_state
     topics = ["network", "blockchain", "contract", "audit"]
     feed = []
-    for agent in list(state.agent_registry.values()):
+    # Limit to first 3 agents to keep the response fast
+    for agent in list(state.agent_registry.values())[:3]:
         for topic in topics:
             task = AgentTask(
                 description="autonomous_post",

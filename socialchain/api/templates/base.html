@@ -8,56 +8,98 @@
     <link href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body class="bg-dark text-light">
+<body class="bg-dark text-light{% if session.get('user_did') %} sc-workbench{% endif %}">
 
 <!-- Particle network canvas background -->
 <canvas id="sc-bg-canvas"></canvas>
 
 {% if session.get('user_did') %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="{{ url_for('web.dashboard') }}">
-            <i class="bi bi-link-45deg text-info"></i>
-            <span class="sc-glow-text">SocialChain</span>
-            <span class="sc-brand-dot" title="Blockchain synced"></span>
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('web.dashboard') }}"><i class="bi bi-grid"></i> Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('web.network') }}"><i class="bi bi-diagram-3"></i> Network</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('web.my_network') }}"><i class="bi bi-globe2"></i> 3D Network</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('web.profile') }}"><i class="bi bi-person"></i> Profile</a>
-                </li>
-            </ul>
-            <ul class="navbar-nav align-items-center">
-                <li class="nav-item me-3">
-                    <span class="text-secondary small">
-                        <span class="sc-status-dot" title="Chain active"></span>
-                        <span class="text-success" style="font-size:0.75rem;">CHAIN ACTIVE</span>
-                    </span>
-                </li>
-                <li class="nav-item">
-                    <span class="nav-link text-secondary"><i class="bi bi-person-circle text-info"></i> {{ session.get('username') }}</span>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
-                </li>
-            </ul>
-        </div>
-    </div>
-</nav>
-{% endif %}
 
+<!-- ══ TITLE BAR ══════════════════════════════════════════════════════════ -->
+<div class="sc-titlebar">
+    <a href="{{ url_for('web.dashboard') }}" class="sc-titlebar-brand">
+        <i class="bi bi-link-45deg"></i> SocialChain
+    </a>
+    <span class="sc-titlebar-title">Blockchain Network Workbench</span>
+    <div class="d-flex align-items-center gap-2" style="-webkit-app-region:no-drag;">
+        <span class="sc-status-dot" title="Chain active"></span>
+        <span style="font-size:0.68rem;color:#198754;">CHAIN ACTIVE</span>
+        <span class="text-secondary ms-2" style="font-size:0.68rem;">
+            <i class="bi bi-person-circle text-info me-1"></i>{{ session.get('username') }}
+        </span>
+        <a href="{{ url_for('auth.logout') }}" class="text-danger ms-2" style="font-size:0.75rem;"
+           title="Logout"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+</div>
+
+<!-- ══ WORKBENCH BODY ══════════════════════════════════════════════════════ -->
+<div class="sc-workbench-body">
+
+    <!-- ── ACTIVITY BAR ─────────────────────────────────────────────────── -->
+    <nav class="sc-activity-bar" aria-label="Workbench activity bar">
+        <a href="{{ url_for('web.dashboard') }}" class="sc-ab-btn {% if request.endpoint == 'web.dashboard' or request.endpoint == 'web.index' %}active{% endif %}"
+           data-tooltip="Dashboard"><i class="bi bi-grid"></i></a>
+        <a href="{{ url_for('web.network') }}" class="sc-ab-btn {% if request.endpoint == 'web.network' %}active{% endif %}"
+           data-tooltip="Network Map"><i class="bi bi-diagram-3"></i></a>
+        <a href="{{ url_for('web.my_network') }}" class="sc-ab-btn {% if request.endpoint == 'web.my_network' %}active{% endif %}"
+           data-tooltip="3D Network"><i class="bi bi-globe2"></i></a>
+        <a href="{{ url_for('web.ide') }}" class="sc-ab-btn {% if request.endpoint == 'web.ide' %}active{% endif %}"
+           data-tooltip="Network Workbench"><i class="bi bi-layout-wtf"></i></a>
+        <a href="{{ url_for('web.profile') }}" class="sc-ab-btn {% if request.endpoint == 'web.profile' %}active{% endif %}"
+           data-tooltip="My Profile"><i class="bi bi-person-circle"></i></a>
+        <div class="sc-ab-spacer"></div>
+        <div class="sc-ab-separator"></div>
+        <button class="sc-ab-btn" id="sc-chat-toggle-btn" data-tooltip="Agent Assistant (Ctrl+`)"
+                onclick="scToggleChat()" aria-label="Toggle agent chat">
+            <i class="bi bi-robot"></i>
+        </button>
+    </nav>
+
+    <!-- ── MAIN CONTENT AREA ──────────────────────────────────────────────── -->
+    <main class="sc-main-area" id="sc-main-area">
+        <!-- Top navbar (mobile breadcrumb) hidden on desktop in workbench mode -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary d-lg-none">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold" href="{{ url_for('web.dashboard') }}">
+                    <i class="bi bi-link-45deg text-info"></i>
+                    <span class="sc-glow-text">SocialChain</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.dashboard') }}"><i class="bi bi-grid"></i> Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.network') }}"><i class="bi bi-diagram-3"></i> Network</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.my_network') }}"><i class="bi bi-globe2"></i> 3D Network</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.ide') }}"><i class="bi bi-layout-wtf"></i> Workbench</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.profile') }}"><i class="bi bi-person"></i> Profile</a></li>
+                    </ul>
+                    <ul class="navbar-nav align-items-center">
+                        <li class="nav-item">
+                            <span class="nav-link text-secondary"><i class="bi bi-person-circle text-info"></i> {{ session.get('username') }}</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid py-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+{% else %}
+<!-- ── Unauthenticated: plain container ─────────────────────────────── -->
 <div class="container-fluid py-3">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -69,16 +111,80 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
-    {% block content %}{% endblock %}
-</div>
+{% endif %}
+{% block content %}{% endblock %}
+{% if session.get('user_did') %}
+        </div><!-- /container-fluid authenticated -->
+    </main>
+    <!-- ── AGENT CHAT PANEL ─────────────────────────────────────────────── -->
+    <aside class="sc-chat-panel" id="sc-chat-panel" aria-label="Agent assistant">
+        <div class="sc-chat-header">
+            <span class="sc-chat-header-title"><i class="bi bi-robot me-1"></i>Agent Assistant</span>
+            <select class="sc-chat-agent-select" id="sc-chat-agent-select" title="Select agent">
+                <option value="">Auto-select</option>
+            </select>
+        </div>
+        <div class="sc-chat-messages" id="sc-chat-messages">
+            <div class="sc-chat-msg agent">
+                <div class="sc-chat-sender">ChainBot</div>
+                Hello! I'm your SocialChain IDE assistant. Ask me about smart contracts,
+                node identities, network topology, or blockchain transactions.
+            </div>
+        </div>
+        <div class="sc-chat-thinking" id="sc-chat-thinking">
+            <i class="bi bi-three-dots"></i> Thinking…
+        </div>
+        <div class="sc-chat-input-row">
+            <textarea class="sc-chat-input" id="sc-chat-input" rows="1"
+                      placeholder="Ask the agent…" aria-label="Chat message"></textarea>
+            <button class="sc-chat-send-btn" id="sc-chat-send-btn"
+                    title="Send (Enter)"><i class="bi bi-send"></i></button>
+        </div>
+    </aside>
+</div><!-- /sc-workbench-body -->
+<!-- ══ STATUS BAR ═════════════════════════════════════════════════════════ -->
+<footer class="sc-statusbar" aria-label="Status bar">
+    <span class="sc-statusbar-item">
+        <span class="sc-status-dot"></span>
+        <span id="sb-chain-status">Chain Active</span>
+    </span>
+    <span class="sc-statusbar-sep"></span>
+    <span class="sc-statusbar-item">
+        <i class="bi bi-boxes"></i>
+        <span id="sb-block-count">–</span> blocks
+    </span>
+    <span class="sc-statusbar-sep"></span>
+    <span class="sc-statusbar-item">
+        <i class="bi bi-diagram-3"></i>
+        <span id="sb-peer-count">–</span> peers
+    </span>
+    <span class="sc-statusbar-sep"></span>
+    <span class="sc-statusbar-item">
+        <i class="bi bi-robot"></i>
+        <span id="sb-agent-count">–</span> agents
+    </span>
+    <span class="sc-statusbar-sep"></span>
+    <span class="sc-statusbar-item">
+        <i class="bi bi-person-circle text-info"></i>
+        <code class="text-warning" style="font-size:0.65rem;" id="sb-did">{{ session.get('user_did', '')[:32] }}…</code>
+    </span>
+    <span class="sc-ab-spacer"></span>
+    <span class="sc-statusbar-item clickable" onclick="scToggleChat()" title="Toggle Agent Chat (Ctrl+`)">
+        <i class="bi bi-robot"></i> Agent Chat
+    </span>
+</footer>
+{% else %}
+</div><!-- /container-fluid unauthenticated -->
+{% endif %}
 
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/d3.min.js') }}"></script>
 
-<!-- Particle network background animation -->
+<!-- ══ Particle network background animation ══════════════════════════════ -->
 <script>
 (function() {
     const canvas = document.getElementById('sc-bg-canvas');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let W, H, nodes;
     const NODE_COUNT = 40;
@@ -101,14 +207,11 @@
 
     function draw() {
         ctx.clearRect(0, 0, W, H);
-        // Update positions
         nodes.forEach(n => {
-            n.x += n.vx;
-            n.y += n.vy;
+            n.x += n.vx; n.y += n.vy;
             if (n.x < 0 || n.x > W) n.vx *= -1;
             if (n.y < 0 || n.y > H) n.vy *= -1;
         });
-        // Draw links
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
                 const dx = nodes[i].x - nodes[j].x;
@@ -125,7 +228,6 @@
                 }
             }
         }
-        // Draw nodes
         nodes.forEach(n => {
             ctx.beginPath();
             ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
@@ -135,12 +237,160 @@
         requestAnimationFrame(draw);
     }
 
-    resize();
-    createNodes();
-    draw();
+    resize(); createNodes(); draw();
     window.addEventListener('resize', () => { resize(); createNodes(); });
 })();
 </script>
+
+{% if session.get('user_did') %}
+<!-- ══ Workbench: status bar data + agent chat panel logic ══════════════ -->
+<script>
+/* ── Status bar live updates ──────────────────────────────────────────── */
+async function scUpdateStatusBar() {
+    try {
+        const [chainRes, peersRes, agentsRes] = await Promise.all([
+            fetch('/api/chain'),
+            fetch('/api/network/peers'),
+            fetch('/api/agents'),
+        ]);
+        if (chainRes.ok) {
+            const d = await chainRes.json();
+            const el = document.getElementById('sb-block-count');
+            if (el) el.textContent = d.length ?? '–';
+        }
+        if (peersRes.ok) {
+            const d = await peersRes.json();
+            const el = document.getElementById('sb-peer-count');
+            if (el) el.textContent = (d.peers || []).length;
+        }
+        if (agentsRes.ok) {
+            const d = await agentsRes.json();
+            const el = document.getElementById('sb-agent-count');
+            if (el) el.textContent = (d.agents || []).length;
+            // Populate agent selector
+            const sel = document.getElementById('sc-chat-agent-select');
+            if (sel) {
+                const existing = new Set(Array.from(sel.options).map(o => o.value));
+                (d.agents || []).forEach(a => {
+                    if (!existing.has(a.did)) {
+                        const opt = document.createElement('option');
+                        opt.value = a.did;
+                        opt.textContent = a.name;
+                        sel.appendChild(opt);
+                    }
+                });
+            }
+        }
+    } catch(e) {}
+}
+
+scUpdateStatusBar();
+setInterval(scUpdateStatusBar, 12000);
+
+/* ── Agent chat panel toggle ──────────────────────────────────────────── */
+function scToggleChat() {
+    const panel = document.getElementById('sc-chat-panel');
+    const btn   = document.getElementById('sc-chat-toggle-btn');
+    if (!panel) return;
+    panel.classList.toggle('open');
+    if (btn) btn.classList.toggle('active', panel.classList.contains('open'));
+    if (panel.classList.contains('open')) {
+        const inp = document.getElementById('sc-chat-input');
+        if (inp) inp.focus();
+    }
+}
+
+/* ── Agent chat send ──────────────────────────────────────────────────── */
+async function scSendChat() {
+    const input    = document.getElementById('sc-chat-input');
+    const thinking = document.getElementById('sc-chat-thinking');
+    const agentSel = document.getElementById('sc-chat-agent-select');
+    const messages = document.getElementById('sc-chat-messages');
+    if (!input || !messages) return;
+
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Append user bubble
+    const userBubble = document.createElement('div');
+    userBubble.className = 'sc-chat-msg user';
+    userBubble.innerHTML = '<div class="sc-chat-sender">You</div>' +
+        escHtmlChat(message).replace(/\n/g, '<br>');
+    messages.appendChild(userBubble);
+    messages.scrollTop = messages.scrollHeight;
+
+    input.value = '';
+    input.style.height = '';
+    if (thinking) { thinking.style.display = 'block'; messages.scrollTop = messages.scrollHeight; }
+
+    try {
+        const body = { message };
+        if (agentSel && agentSel.value) body.agent_did = agentSel.value;
+        const res = await fetch('/api/agents/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (thinking) thinking.style.display = 'none';
+
+        const agentBubble = document.createElement('div');
+        agentBubble.className = 'sc-chat-msg agent';
+        const agentName = escHtmlChat(data.agent || 'Agent');
+        const reply     = escHtmlChat(data.reply || data.error || 'No response.');
+        agentBubble.innerHTML = `<div class="sc-chat-sender">${agentName}</div>` +
+            reply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                 .replace(/`([^`]+)`/g, '<code style="font-size:0.75rem;color:#ffc107">$1</code>')
+                 .replace(/\n/g, '<br>');
+        messages.appendChild(agentBubble);
+        messages.scrollTop = messages.scrollHeight;
+    } catch(e) {
+        if (thinking) thinking.style.display = 'none';
+        const errBubble = document.createElement('div');
+        errBubble.className = 'sc-chat-msg agent';
+        errBubble.textContent = 'Could not reach agent. Is the backend running?';
+        messages.appendChild(errBubble);
+        messages.scrollTop = messages.scrollHeight;
+    }
+}
+
+/* ── Wire up send button and keyboard shortcuts ──────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    const sendBtn = document.getElementById('sc-chat-send-btn');
+    if (sendBtn) sendBtn.addEventListener('click', scSendChat);
+
+    const inp = document.getElementById('sc-chat-input');
+    if (inp) {
+        inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                scSendChat();
+            }
+        });
+        inp.addEventListener('input', () => {
+            inp.style.height = '';
+            inp.style.height = Math.min(inp.scrollHeight, 100) + 'px';
+        });
+    }
+
+    // Ctrl+` toggles the chat panel
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === '`') {
+            e.preventDefault();
+            scToggleChat();
+        }
+    });
+});
+
+function escHtmlChat(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+</script>
+{% endif %}
 
 {% block scripts %}{% endblock %}
 </body>

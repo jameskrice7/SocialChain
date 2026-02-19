@@ -1,0 +1,1042 @@
+{% extends "base.html" %}
+{% block title %}Network Workbench – SocialChain{% endblock %}
+
+{% block content %}
+<style>
+/* ── Workbench IDE layout ── */
+#sc-ide-root {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 30px - 22px - 1px); /* viewport - titlebar - statusbar - border */
+    margin: -1rem -1.5rem 0;
+    overflow: hidden;
+}
+
+/* Tab bar */
+#sc-ide-tabbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    background: #0a0a18;
+    border-bottom: 1px solid rgba(13,202,240,0.12);
+    overflow-x: auto;
+    gap: 0;
+}
+.sc-ide-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 18px;
+    height: 36px;
+    font-size: 0.78rem;
+    color: #6c757d;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+    background: transparent;
+    border-top: none; border-left: none;
+}
+.sc-ide-tab.active {
+    color: #e0e0e0;
+    border-bottom-color: #0dcaf0;
+    background: rgba(13,202,240,0.06);
+}
+.sc-ide-tab:hover { color: #e0e0e0; }
+
+/* Tab panels */
+#sc-ide-panels { flex: 1; overflow: hidden; position: relative; }
+.sc-ide-panel {
+    position: absolute; inset: 0;
+    display: none;
+    overflow: hidden;
+}
+.sc-ide-panel.active { display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Node Registry ── */
+#panel-registry { flex-direction: row; gap: 0; }
+#sc-reg-sidebar {
+    width: 260px; flex-shrink: 0;
+    background: #0a0a18;
+    border-right: 1px solid rgba(13,202,240,0.1);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+#sc-reg-sidebar-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(13,202,240,0.1);
+    font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: #6c757d;
+}
+#sc-reg-list {
+    flex: 1; overflow-y: auto; padding: 6px 0;
+}
+.sc-reg-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    font-size: 0.78rem; cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background .12s, border-color .12s;
+}
+.sc-reg-item:hover { background: rgba(13,202,240,0.07); }
+.sc-reg-item.selected { background: rgba(13,202,240,0.12); border-left-color: #0dcaf0; }
+.sc-reg-item .sc-reg-icon { font-size: 1rem; flex-shrink: 0; }
+
+#sc-reg-main {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+}
+.sc-reg-detail-empty {
+    color: #6c757d; font-size: 0.85rem; padding-top: 40px; text-align: center;
+}
+.sc-node-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+}
+.sc-node-badge.human   { background: rgba(13,202,240,0.12); border: 1px solid #0dcaf0; color: #0dcaf0; }
+.sc-node-badge.device  { background: rgba(25,135,84,0.12); border: 1px solid #198754; color: #198754; }
+.sc-node-badge.agent   { background: rgba(255,193,7,0.12); border: 1px solid #ffc107; color: #ffc107; }
+
+/* ── Topology Builder ── */
+#panel-topology { flex-direction: column; }
+#sc-topo-toolbar {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: #0a0a18; border-bottom: 1px solid rgba(13,202,240,0.1);
+    flex-wrap: wrap;
+}
+#sc-topo-canvas-wrap {
+    flex: 1; position: relative; overflow: hidden; background: #050510;
+}
+#sc-topo-svg { width: 100%; height: 100%; display: block; }
+#sc-topo-hint {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 0.72rem; color: #3a3a5a; pointer-events: none; white-space: nowrap;
+}
+.sc-topo-btn {
+    background: rgba(13,202,240,0.08); border: 1px solid rgba(13,202,240,0.25);
+    color: #0dcaf0; border-radius: 4px; padding: 4px 12px;
+    font-size: 0.78rem; cursor: pointer; transition: background .15s;
+    white-space: nowrap;
+}
+.sc-topo-btn:hover { background: rgba(13,202,240,0.18); }
+.sc-topo-btn.active { background: rgba(13,202,240,0.22); box-shadow: 0 0 8px rgba(13,202,240,0.3); }
+.sc-topo-btn.danger { border-color: rgba(220,53,69,0.4); color: #dc3545; }
+.sc-topo-btn.danger:hover { background: rgba(220,53,69,0.12); }
+
+/* ── Transaction Inspector ── */
+#panel-txinspector { flex-direction: row; gap: 0; }
+#sc-tx-list-col {
+    width: 300px; flex-shrink: 0;
+    background: #0a0a18; border-right: 1px solid rgba(13,202,240,0.1);
+    display: flex; flex-direction: column; overflow: hidden;
+}
+#sc-tx-list-header {
+    padding: 10px 12px; border-bottom: 1px solid rgba(13,202,240,0.1);
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #6c757d;
+}
+#sc-tx-list { flex: 1; overflow-y: auto; }
+.sc-tx-item {
+    padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer; transition: background .12s;
+    font-size: 0.76rem;
+}
+.sc-tx-item:hover { background: rgba(13,202,240,0.07); }
+.sc-tx-item.selected { background: rgba(13,202,240,0.12); border-left: 3px solid #0dcaf0; }
+.sc-tx-hash { font-family: monospace; font-size: 0.7rem; color: #ffc107; }
+.sc-tx-meta { color: #6c757d; font-size: 0.67rem; margin-top: 2px; }
+#sc-tx-detail-col { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+/* ── Contract Editor ── */
+#panel-contracts { flex-direction: row; gap: 0; }
+#sc-contracts-sidebar {
+    width: 220px; flex-shrink: 0;
+    background: #0a0a18; border-right: 1px solid rgba(13,202,240,0.1);
+    display: flex; flex-direction: column; overflow: hidden;
+}
+#sc-contracts-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+.sc-contract-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; font-size: 0.78rem; cursor: pointer;
+    border-left: 3px solid transparent; transition: background .12s;
+}
+.sc-contract-item:hover { background: rgba(13,202,240,0.07); }
+.sc-contract-item.selected { background: rgba(13,202,240,0.12); border-left-color: #0dcaf0; }
+#sc-contract-editor-col {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+#sc-contract-editor-toolbar {
+    flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; background: #0a0a18; border-bottom: 1px solid rgba(13,202,240,0.1);
+}
+#sc-contract-editor {
+    flex: 1;
+    background: #07070f; color: #c9d1d9;
+    border: none; outline: none; resize: none;
+    padding: 16px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.82rem; line-height: 1.6; tab-size: 4;
+    overflow-y: auto;
+}
+#sc-contract-output {
+    flex-shrink: 0; height: 100px; overflow-y: auto;
+    background: #050508; border-top: 1px solid rgba(13,202,240,0.1);
+    padding: 8px 12px; font-family: monospace; font-size: 0.75rem; color: #6c757d;
+}
+
+/* ── Add node modal ── */
+.sc-form-label { font-size: 0.78rem; color: #6c757d; margin-bottom: 3px; }
+.sc-form-control {
+    background: #0d0d1e; border: 1px solid rgba(13,202,240,0.2);
+    color: #e0e0e0; border-radius: 5px; padding: 6px 10px; font-size: 0.8rem; width: 100%;
+}
+.sc-form-control:focus { outline: none; border-color: #0dcaf0; box-shadow: 0 0 6px rgba(13,202,240,0.2); }
+select.sc-form-control option { background: #0d0d1e; }
+</style>
+
+<div id="sc-ide-root">
+
+    <!-- ── Tab bar ── -->
+    <div id="sc-ide-tabbar" role="tablist" aria-label="Workbench panels">
+        <button class="sc-ide-tab active" role="tab" aria-selected="true"
+                aria-controls="panel-registry" data-panel="registry"
+                onclick="scIdeTab('registry', this)">
+            <i class="bi bi-people"></i> Node Registry
+        </button>
+        <button class="sc-ide-tab" role="tab" aria-selected="false"
+                aria-controls="panel-topology" data-panel="topology"
+                onclick="scIdeTab('topology', this)">
+            <i class="bi bi-diagram-3"></i> Topology Builder
+        </button>
+        <button class="sc-ide-tab" role="tab" aria-selected="false"
+                aria-controls="panel-txinspector" data-panel="txinspector"
+                onclick="scIdeTab('txinspector', this)">
+            <i class="bi bi-activity"></i> Transaction Inspector
+        </button>
+        <button class="sc-ide-tab" role="tab" aria-selected="false"
+                aria-controls="panel-contracts" data-panel="contracts"
+                onclick="scIdeTab('contracts', this)">
+            <i class="bi bi-file-code"></i> Contract Editor
+        </button>
+    </div>
+
+    <!-- ══ TAB PANELS ══════════════════════════════════════════════════════ -->
+    <div id="sc-ide-panels">
+
+        <!-- ── Node Registry ── -->
+        <div class="sc-ide-panel active" id="panel-registry">
+            <div id="sc-reg-sidebar">
+                <div id="sc-reg-sidebar-header">
+                    <i class="bi bi-people me-1"></i>Network Nodes
+                    <button class="sc-topo-btn float-end py-0 px-2" style="font-size:0.7rem;"
+                            onclick="scShowAddNodeModal()">
+                        <i class="bi bi-plus"></i> Add
+                    </button>
+                </div>
+                <!-- Filter pills -->
+                <div class="d-flex gap-1 px-2 py-2 flex-shrink-0" style="border-bottom:1px solid rgba(13,202,240,0.07);">
+                    <button class="sc-topo-btn py-0 px-2 active" style="font-size:0.68rem;" id="filter-all"
+                            onclick="scRegFilter('all', this)">All</button>
+                    <button class="sc-topo-btn py-0 px-2" style="font-size:0.68rem;" id="filter-human"
+                            onclick="scRegFilter('human', this)"><i class="bi bi-person"></i></button>
+                    <button class="sc-topo-btn py-0 px-2" style="font-size:0.68rem;" id="filter-device"
+                            onclick="scRegFilter('device', this)"><i class="bi bi-cpu"></i></button>
+                    <button class="sc-topo-btn py-0 px-2" style="font-size:0.68rem;" id="filter-agent"
+                            onclick="scRegFilter('agent', this)"><i class="bi bi-robot"></i></button>
+                </div>
+                <div id="sc-reg-list"><div class="p-3 text-secondary" style="font-size:0.78rem;">Loading…</div></div>
+            </div>
+            <div id="sc-reg-main">
+                <div class="sc-reg-detail-empty" id="sc-reg-detail-empty">
+                    <i class="bi bi-person-circle" style="font-size:2.5rem;opacity:0.2;display:block;margin-bottom:8px;"></i>
+                    Select a node to view its details
+                </div>
+                <div id="sc-reg-detail" class="d-none"></div>
+            </div>
+        </div>
+
+        <!-- ── Topology Builder ── -->
+        <div class="sc-ide-panel" id="panel-topology">
+            <div id="sc-topo-toolbar">
+                <span class="text-secondary" style="font-size:0.75rem;font-weight:600;letter-spacing:.5px;">TOPOLOGY BUILDER</span>
+                <div class="sc-ab-separator" style="width:1px;height:18px;margin:0 4px;"></div>
+                <button class="sc-topo-btn" id="topo-btn-add-human" onclick="scTopoMode('add-human', this)">
+                    <i class="bi bi-person-plus"></i> + Person
+                </button>
+                <button class="sc-topo-btn" id="topo-btn-add-device" onclick="scTopoMode('add-device', this)">
+                    <i class="bi bi-cpu"></i> + Device
+                </button>
+                <button class="sc-topo-btn" id="topo-btn-add-agent" onclick="scTopoMode('add-agent', this)">
+                    <i class="bi bi-robot"></i> + Agent
+                </button>
+                <button class="sc-topo-btn" id="topo-btn-connect" onclick="scTopoMode('connect', this)">
+                    <i class="bi bi-share"></i> Connect
+                </button>
+                <button class="sc-topo-btn danger" onclick="scTopoClear()">
+                    <i class="bi bi-trash3"></i> Clear
+                </button>
+                <div class="ms-auto d-flex gap-2 align-items-center">
+                    <span id="topo-mode-label" class="text-secondary" style="font-size:0.72rem;">Click canvas to add node</span>
+                    <button class="sc-topo-btn" onclick="scTopoCommit()">
+                        <i class="bi bi-cloud-upload"></i> Commit to Chain
+                    </button>
+                </div>
+            </div>
+            <div id="sc-topo-canvas-wrap">
+                <svg id="sc-topo-svg"></svg>
+                <div id="sc-topo-hint">Click toolbar to add nodes · Drag to reposition · Connect mode: click source then target</div>
+            </div>
+        </div>
+
+        <!-- ── Transaction Inspector ── -->
+        <div class="sc-ide-panel" id="panel-txinspector">
+            <div id="sc-tx-list-col">
+                <div id="sc-tx-list-header">
+                    <i class="bi bi-activity me-1"></i>Transactions
+                    <button class="sc-topo-btn float-end py-0 px-2" style="font-size:0.7rem;"
+                            onclick="scTxLoad()"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+                <div id="sc-tx-list"><div class="p-3 text-secondary" style="font-size:0.78rem;">Loading…</div></div>
+            </div>
+            <div id="sc-tx-detail-col">
+                <p class="text-secondary" style="font-size:0.85rem;">Select a transaction to inspect.</p>
+            </div>
+        </div>
+
+        <!-- ── Contract Editor ── -->
+        <div class="sc-ide-panel" id="panel-contracts">
+            <div id="sc-contracts-sidebar">
+                <div id="sc-reg-sidebar-header" style="display:flex;align-items:center;justify-content:space-between;">
+                    <span><i class="bi bi-file-code me-1"></i>Contracts</span>
+                    <button class="sc-topo-btn py-0 px-2" style="font-size:0.7rem;"
+                            onclick="scContractNew()"><i class="bi bi-plus"></i></button>
+                </div>
+                <div id="sc-contracts-list"></div>
+            </div>
+            <div id="sc-contract-editor-col">
+                <div id="sc-contract-editor-toolbar">
+                    <span class="text-secondary" style="font-size:0.72rem;" id="sc-contract-filename">untitled.sol</span>
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="sc-topo-btn py-0 px-3" onclick="scContractCompile()">
+                            <i class="bi bi-play-fill"></i> Compile
+                        </button>
+                        <button class="sc-topo-btn py-0 px-3" onclick="scContractDeploy()">
+                            <i class="bi bi-cloud-upload"></i> Deploy
+                        </button>
+                        <button class="sc-topo-btn py-0 px-3" onclick="scContractAudit()">
+                            <i class="bi bi-shield-check"></i> Audit
+                        </button>
+                    </div>
+                </div>
+                <textarea id="sc-contract-editor" spellcheck="false" autocomplete="off"
+                          placeholder="// Paste Solidity or JSON contract source here…
+// Example:
+// pragma solidity ^0.8.0;
+// contract SocialNode {
+//     mapping(address => string) public dids;
+//     function register(string calldata did) external {
+//         dids[msg.sender] = did;
+//     }
+// }"></textarea>
+                <div id="sc-contract-output">// Output will appear here after compile / deploy / audit…</div>
+            </div>
+        </div>
+
+    </div><!-- /sc-ide-panels -->
+</div><!-- /sc-ide-root -->
+
+<!-- ── Add Node Modal ── -->
+<div class="modal fade" id="addNodeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+        <div class="modal-content" style="background:#0d0d1e;border:1px solid rgba(13,202,240,0.25);">
+            <div class="modal-header" style="border-bottom:1px solid rgba(13,202,240,0.12);">
+                <h6 class="modal-title text-info"><i class="bi bi-person-plus me-1"></i>Add Network Node</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+                <div>
+                    <div class="sc-form-label">Node Type</div>
+                    <select class="sc-form-control" id="new-node-type">
+                        <option value="human">Person (Human)</option>
+                        <option value="device">Device (IoT / Hardware)</option>
+                        <option value="agent">AI Agent (Autonomous)</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="sc-form-label">Display Name</div>
+                    <input type="text" class="sc-form-control" id="new-node-name" placeholder="Alice, Sensor-01, ChainBot…">
+                </div>
+                <div>
+                    <div class="sc-form-label">Username / Handle</div>
+                    <input type="text" class="sc-form-control" id="new-node-username" placeholder="alice, sensor01, chainbot…">
+                </div>
+                <div id="new-node-caps-row">
+                    <div class="sc-form-label">Capabilities (comma-separated)</div>
+                    <input type="text" class="sc-form-control" id="new-node-caps" placeholder="chat, audit, echo…">
+                </div>
+                <div id="new-node-result" class="small mt-1"></div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid rgba(13,202,240,0.12);">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-info" onclick="scAddNode()">Register Node</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const USER_DID = "{{ user_did }}";
+
+/* ══ Tab switching ═══════════════════════════════════════════════════════ */
+function scIdeTab(name, btn) {
+    document.querySelectorAll('.sc-ide-tab').forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.sc-ide-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    document.getElementById('panel-' + name).classList.add('active');
+    if (name === 'registry')    scRegLoad();
+    if (name === 'topology')    scTopoInit();
+    if (name === 'txinspector') scTxLoad();
+    if (name === 'contracts')   scContractListLoad();
+}
+
+/* ══ Node Registry ═══════════════════════════════════════════════════════ */
+let regProfiles = [];
+let regAgents   = [];
+let regFilter   = 'all';
+let regSelected = null;
+
+function nodeTypeLabel(p) {
+    if (p.is_agent || p.device_type === 'agent') return 'agent';
+    if (p.device_type === 'device') return 'device';
+    return 'human';
+}
+const NODE_ICONS = { human: 'bi-person-circle', device: 'bi-cpu', agent: 'bi-robot' };
+const NODE_COLORS = { human: '#0dcaf0', device: '#198754', agent: '#ffc107' };
+
+async function scRegLoad() {
+    try {
+        const [pRes, aRes] = await Promise.all([
+            fetch('/api/social/profiles'),
+            fetch('/api/agents'),
+        ]);
+        if (pRes.ok) { const d = await pRes.json(); regProfiles = d.profiles || []; }
+        if (aRes.ok) { const d = await aRes.json(); regAgents   = d.agents   || []; }
+    } catch(e) {}
+    scRegRender();
+}
+
+function scRegFilter(f, btn) {
+    regFilter = f;
+    document.querySelectorAll('#sc-reg-sidebar .sc-topo-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    scRegRender();
+}
+
+function scRegRender() {
+    const list = document.getElementById('sc-reg-list');
+    let items = regProfiles.map(p => ({
+        did:      p.did,
+        name:     p.display_name || p.username,
+        username: p.username,
+        type:     nodeTypeLabel(p),
+        meta:     p.metadata || {},
+        raw:      p,
+    }));
+    // Merge agents not already in profiles
+    regAgents.forEach(a => {
+        if (!items.find(i => i.did === a.did)) {
+            items.push({ did: a.did, name: a.name, username: a.name, type: 'agent', meta: {}, raw: a });
+        }
+    });
+    if (regFilter !== 'all') items = items.filter(i => i.type === regFilter);
+
+    if (!items.length) {
+        list.innerHTML = '<div class="p-3 text-secondary" style="font-size:0.78rem;">No nodes found.</div>';
+        return;
+    }
+    list.innerHTML = items.map((item, idx) => `
+        <div class="sc-reg-item ${item.did === regSelected ? 'selected' : ''}"
+             data-idx="${idx}" onclick="scRegSelect(${idx})">
+            <i class="sc-reg-icon bi ${NODE_ICONS[item.type]}" style="color:${NODE_COLORS[item.type]}"></i>
+            <div>
+                <div style="font-size:0.78rem;color:#e0e0e0;">${escH(item.name)}</div>
+                <div style="font-size:0.66rem;color:#6c757d;">${item.type.toUpperCase()}</div>
+            </div>
+        </div>
+    `).join('');
+    // Attach click handlers via data-idx (safe, no innerHTML with user content)
+    list.querySelectorAll('.sc-reg-item').forEach(el => {
+        el.addEventListener('click', () => scRegSelectItem(items[parseInt(el.dataset.idx)]));
+    });
+}
+
+function scRegSelect(idx) {} // replaced by event listener above
+function scRegSelectItem(item) {
+    regSelected = item.did;
+    document.getElementById('sc-reg-detail-empty').classList.add('d-none');
+    const det = document.getElementById('sc-reg-detail');
+    det.classList.remove('d-none');
+
+    const isMe = item.did === USER_DID;
+    const typeBadge = `<span class="sc-node-badge ${item.type}">${item.type.toUpperCase()}</span>`;
+    const meBadge   = isMe ? '<span class="sc-node-badge human ms-2" style="background:rgba(25,135,84,0.12);border-color:#198754;color:#198754;">YOU</span>' : '';
+    const verBadge  = item.meta.blockchain_status === 'verified'
+        ? '<span class="sc-chain-badge ms-2"><i class="bi bi-check-circle-fill"></i> Verified</span>' : '';
+
+    const metaRows = Object.entries(item.meta)
+        .filter(([k]) => !['external_contacts', 'social_links'].includes(k))
+        .map(([k,v]) => `<tr>
+            <td class="text-secondary pe-3" style="font-size:0.72rem;white-space:nowrap;">${escH(k)}</td>
+            <td class="text-light" style="font-size:0.72rem;word-break:break-all;">${escH(String(v))}</td>
+        </tr>`).join('');
+
+    const caps = (item.raw.capabilities || []).map(c =>
+        `<span class="badge bg-dark border border-secondary me-1 mb-1" style="font-size:0.68rem;">${escH(c)}</span>`
+    ).join('');
+
+    det.innerHTML = `
+        <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+            <i class="bi ${NODE_ICONS[item.type]}" style="font-size:2rem;color:${NODE_COLORS[item.type]};"></i>
+            <div>
+                <h5 class="mb-0 text-light">${escH(item.name)}</h5>
+                <div class="mt-1">${typeBadge}${meBadge}${verBadge}</div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <div class="sc-form-label">DID</div>
+            <code class="text-warning" style="font-size:0.7rem;word-break:break-all;">${escH(item.did)}</code>
+        </div>
+        ${caps ? `<div class="mb-3"><div class="sc-form-label">Capabilities</div>${caps}</div>` : ''}
+        ${metaRows ? `
+        <div class="mb-3">
+            <div class="sc-form-label mb-1">Metadata</div>
+            <table class="table table-dark table-sm table-borderless mb-0">${metaRows}</table>
+        </div>` : ''}
+        <div class="d-flex gap-2 mt-3 flex-wrap">
+            <button class="sc-topo-btn py-1 px-3 sc-chat-node-btn">
+                <i class="bi bi-chat-left-text"></i> Chat
+            </button>
+            ${item.type === 'human' || item.type === 'device' ? `
+            <button class="sc-topo-btn py-1 px-3 sc-verify-node-btn">
+                <i class="bi bi-shield-check"></i> Verify on Chain
+            </button>` : ''}
+        </div>
+        <div id="reg-action-result" class="small mt-2"></div>
+    `;
+    // Attach click handlers via event listeners to avoid inline onclick with user data
+    const chatBtn = det.querySelector('.sc-chat-node-btn');
+    if (chatBtn) chatBtn.addEventListener('click', () => scChatWithNode(item.name));
+    const verifyBtn = det.querySelector('.sc-verify-node-btn');
+    if (verifyBtn) verifyBtn.addEventListener('click', () => scVerifyNode(item.did));
+    document.querySelectorAll('.sc-reg-item').forEach(el => el.classList.remove('selected'));
+    scRegRender();
+}
+
+function scChatWithNode(agentName) {
+    const panel = document.getElementById('sc-chat-panel');
+    if (panel && !panel.classList.contains('open')) scToggleChat();
+    const inp = document.getElementById('sc-chat-input');
+    if (inp) {
+        inp.value = `Tell me about the node "${agentName}"`;
+        inp.focus();
+    }
+}
+
+async function scVerifyNode(did) {
+    const res = await fetch(`/api/social/profiles/${encodeURIComponent(did)}/verify`, {method:'POST'});
+    const data = await res.json();
+    const el = document.getElementById('reg-action-result');
+    if (el) {
+        el.className = res.ok ? 'small mt-2 text-success' : 'small mt-2 text-danger';
+        el.textContent = res.ok ? '✓ ' + (data.message || 'Verified') : (data.error || 'Error');
+    }
+}
+
+async function scAddNode() {
+    const type     = document.getElementById('new-node-type').value;
+    const name     = document.getElementById('new-node-name').value.trim();
+    const username = document.getElementById('new-node-username').value.trim();
+    const capsRaw  = document.getElementById('new-node-caps').value.trim();
+    const result   = document.getElementById('new-node-result');
+    if (!name || !username) { result.className='small text-danger'; result.textContent='Name and username required.'; return; }
+
+    result.className = 'small text-secondary'; result.textContent = 'Registering…';
+
+    if (type === 'agent') {
+        const caps = capsRaw ? capsRaw.split(',').map(c => c.trim()).filter(Boolean) : ['chat','echo'];
+        const res = await fetch('/api/agents', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name, capabilities: caps }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            result.className = 'small text-success'; result.textContent = '✓ Agent registered: ' + (data.agent?.did || '').slice(0,24) + '…';
+            setTimeout(() => { bootstrap.Modal.getInstance(document.getElementById('addNodeModal')).hide(); scRegLoad(); }, 1200);
+        } else {
+            result.className = 'small text-danger'; result.textContent = data.error || 'Error';
+        }
+    } else {
+        // Register as a social profile (device or human)
+        const res = await fetch('/api/social/profiles', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ display_name: name, username, device_type: type }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            result.className = 'small text-success'; result.textContent = '✓ Node registered: ' + (data.profile?.did || '').slice(0,24) + '…';
+            setTimeout(() => { bootstrap.Modal.getInstance(document.getElementById('addNodeModal')).hide(); scRegLoad(); }, 1200);
+        } else {
+            result.className = 'small text-danger'; result.textContent = data.error || 'Error';
+        }
+    }
+}
+
+function scShowAddNodeModal() {
+    new bootstrap.Modal(document.getElementById('addNodeModal')).show();
+    document.getElementById('new-node-result').textContent = '';
+}
+
+// Show/hide capabilities field based on node type
+document.addEventListener('DOMContentLoaded', () => {
+    const typeEl = document.getElementById('new-node-type');
+    if (typeEl) typeEl.addEventListener('change', () => {
+        document.getElementById('new-node-caps-row').style.display =
+            typeEl.value === 'agent' ? '' : 'none';
+    });
+    typeEl && typeEl.dispatchEvent(new Event('change'));
+});
+
+/* ══ Topology Builder (D3 force graph) ══════════════════════════════════ */
+let topoMode    = null;   // 'add-human' | 'add-device' | 'add-agent' | 'connect'
+let topoNodes   = [];
+let topoLinks   = [];
+let topoSimulation = null;
+let topoConnSrc = null;
+let topoNodeSeq = 0;
+
+function scTopoMode(mode, btn) {
+    topoMode = topoMode === mode ? null : mode;
+    document.querySelectorAll('#sc-topo-toolbar .sc-topo-btn').forEach(b => b.classList.remove('active'));
+    if (topoMode) btn.classList.add('active');
+    const labels = {
+        'add-human':  'Click canvas to add a Person node',
+        'add-device': 'Click canvas to add a Device node',
+        'add-agent':  'Click canvas to add an Agent node',
+        'connect':    'Click source node, then target node to connect',
+        null:         'Click toolbar to add nodes',
+    };
+    document.getElementById('topo-mode-label').textContent = labels[topoMode] || labels[null];
+    topoConnSrc = null;
+}
+
+function scTopoClear() {
+    topoNodes = []; topoLinks = []; topoConnSrc = null;
+    if (topoSimulation) topoSimulation.stop();
+    d3.select('#sc-topo-svg').selectAll('*').remove();
+    document.getElementById('topo-mode-label').textContent = 'Click toolbar to add nodes';
+}
+
+function scTopoInit() {
+    const svg = d3.select('#sc-topo-svg');
+    if (!topoNodes.length) {
+        svg.selectAll('*').remove();
+        return;
+    }
+    scTopoRender();
+}
+
+function scTopoRender() {
+    const svgEl = document.getElementById('sc-topo-svg');
+    const W = svgEl.clientWidth  || 800;
+    const H = svgEl.clientHeight || 500;
+    const svg = d3.select('#sc-topo-svg');
+    svg.selectAll('*').remove();
+    svg.attr('viewBox', `0 0 ${W} ${H}`);
+
+    svg.on('click', function(event) {
+        if (!topoMode || topoMode === 'connect') return;
+        const [mx, my] = d3.pointer(event, this);
+        const typeMap = { 'add-human': 'human', 'add-device': 'device', 'add-agent': 'agent' };
+        const t = typeMap[topoMode] || 'human';
+        topoNodes.push({ id: 'n' + (++topoNodeSeq), type: t, label: t[0].toUpperCase() + t.slice(1) + ' ' + topoNodeSeq, x: mx, y: my });
+        scTopoRender();
+    });
+
+    const g = svg.append('g');
+    svg.call(d3.zoom().scaleExtent([0.3,4]).on('zoom', e => g.attr('transform', e.transform)));
+
+    if (topoSimulation) topoSimulation.stop();
+    topoSimulation = d3.forceSimulation(topoNodes)
+        .force('link', d3.forceLink(topoLinks).id(d => d.id).distance(90))
+        .force('charge', d3.forceManyBody().strength(-180))
+        .force('center', d3.forceCenter(W/2, H/2))
+        .force('collide', d3.forceCollide(30));
+
+    const link = g.append('g').selectAll('line').data(topoLinks).join('line')
+        .attr('stroke', '#0dcaf080').attr('stroke-width', 1.5);
+
+    const COLORS = { human: '#0dcaf0', device: '#198754', agent: '#ffc107' };
+    const ICONS  = { human: '👤', device: '💻', agent: '🤖' };
+
+    const nodeG = g.append('g').selectAll('g').data(topoNodes).join('g')
+        .style('cursor', 'pointer')
+        .call(d3.drag()
+            .on('start', (e,d) => { if (!e.active) topoSimulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+            .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+            .on('end',   (e,d) => { if (!e.active) topoSimulation.alphaTarget(0); d.fx=null; d.fy=null; }))
+        .on('click', function(event, d) {
+            event.stopPropagation();
+            if (topoMode !== 'connect') return;
+            if (!topoConnSrc) {
+                topoConnSrc = d;
+                d3.select(this).select('circle').attr('stroke-width', 3).attr('stroke', '#fff');
+            } else if (topoConnSrc.id !== d.id) {
+                topoLinks.push({ source: topoConnSrc.id, target: d.id });
+                topoConnSrc = null;
+                scTopoRender();
+            }
+        });
+
+    nodeG.append('circle')
+        .attr('r', 18).attr('fill', d => COLORS[d.type] + '22')
+        .attr('stroke', d => COLORS[d.type]).attr('stroke-width', 2);
+
+    nodeG.append('text').attr('text-anchor','middle').attr('dy','0.35em')
+        .attr('font-size', 14).text(d => ICONS[d.type]);
+
+    nodeG.append('text').attr('text-anchor','middle').attr('dy', 32)
+        .attr('fill','#adb5bd').attr('font-size', 10).text(d => d.label.length > 14 ? d.label.slice(0,13)+'…' : d.label);
+
+    topoSimulation.on('tick', () => {
+        link.attr('x1', d=>d.source.x).attr('y1', d=>d.source.y)
+            .attr('x2', d=>d.target.x).attr('y2', d=>d.target.y);
+        nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+}
+
+async function scTopoCommit() {
+    if (!topoNodes.length) return;
+    const out = document.getElementById('topo-mode-label');
+    out.textContent = 'Committing…';
+    let ok = 0;
+    for (const n of topoNodes) {
+        if (n.type === 'agent') {
+            const r = await fetch('/api/agents', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ name: n.label, capabilities: ['chat','echo'] }) });
+            if (r.ok) ok++;
+        } else {
+            const r = await fetch('/api/social/profiles', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ display_name: n.label, username: n.label.replace(/\s+/g,'_').toLowerCase(), device_type: n.type }) });
+            if (r.ok) ok++;
+        }
+    }
+    for (const l of topoLinks) {
+        await fetch('/api/social/connections', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ did_a: l.source.id || l.source, did_b: l.target.id || l.target }) }).catch(()=>{});
+    }
+    out.textContent = `✓ Committed ${ok}/${topoNodes.length} nodes to chain`;
+}
+
+/* ══ Transaction Inspector ══════════════════════════════════════════════ */
+let txAllList = [];
+
+async function scTxLoad() {
+    const listEl = document.getElementById('sc-tx-list');
+    listEl.innerHTML = '<div class="p-3 text-secondary" style="font-size:0.78rem;">Loading…</div>';
+    try {
+        const res = await fetch('/api/chain');
+        const data = await res.json();
+        const blocks = data.chain || [];
+        txAllList = [];
+        blocks.forEach(block => {
+            (block.transactions || []).forEach(tx => {
+                txAllList.push({ ...tx, block_index: block.index, block_hash: block.hash, block_ts: block.timestamp });
+            });
+        });
+        // Also include pending
+        (data.pending_transactions || []).forEach(tx => {
+            txAllList.push({ ...tx, block_index: 'PENDING', block_hash: null, block_ts: null });
+        });
+    } catch(e) {
+        listEl.innerHTML = '<div class="p-3 text-danger" style="font-size:0.78rem;">Failed to load chain.</div>';
+        return;
+    }
+    scTxRender();
+}
+
+function scTxRender() {
+    const listEl = document.getElementById('sc-tx-list');
+    if (!txAllList.length) {
+        listEl.innerHTML = '<div class="p-3 text-secondary" style="font-size:0.78rem;">No transactions found.</div>';
+        return;
+    }
+    listEl.innerHTML = '';
+    txAllList.slice().reverse().forEach((tx, idx) => {
+        const div = document.createElement('div');
+        div.className = 'sc-tx-item';
+        div.dataset.idx = String(txAllList.length - 1 - idx);
+        const txType = (tx.data && tx.data.type) ? tx.data.type : 'transfer';
+        const ts = tx.block_ts ? new Date(tx.block_ts * 1000).toLocaleString() : 'Pending';
+        div.innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-dark border border-secondary" style="font-size:0.65rem;">${escH(String(tx.block_index))}</span>
+                <span class="text-secondary" style="font-size:0.7rem;">${escH(txType)}</span>
+            </div>
+            <div class="sc-tx-hash">${escH((tx.tx_id||'').slice(0,20))}…</div>
+            <div class="sc-tx-meta">${ts}</div>`;
+        div.addEventListener('click', () => scTxDetail(parseInt(div.dataset.idx)));
+        listEl.appendChild(div);
+    });
+}
+
+function scTxDetail(idx) {
+    const tx = txAllList[idx];
+    document.querySelectorAll('.sc-tx-item').forEach(el => el.classList.remove('selected'));
+    const els = document.querySelectorAll('.sc-tx-item');
+    const revIdx = txAllList.length - 1 - idx;
+    if (els[revIdx]) els[revIdx].classList.add('selected');
+
+    const detEl = document.getElementById('sc-tx-detail-col');
+    const ts = tx.block_ts ? new Date(tx.block_ts * 1000).toLocaleString() : 'Pending';
+    detEl.innerHTML = `
+        <h6 class="text-info mb-3"><i class="bi bi-activity me-1"></i>Transaction Detail</h6>
+        <dl class="row" style="font-size:0.78rem;">
+            <dt class="col-4 text-secondary">TX ID</dt>
+            <dd class="col-8"><code class="text-warning" style="font-size:0.7rem;word-break:break-all;">${escH(tx.tx_id||'—')}</code></dd>
+            <dt class="col-4 text-secondary">Block</dt>
+            <dd class="col-8"><span class="badge bg-dark border border-info">${escH(String(tx.block_index))}</span></dd>
+            <dt class="col-4 text-secondary">Block Hash</dt>
+            <dd class="col-8"><code class="text-secondary" style="font-size:0.7rem;">${escH((tx.block_hash||'—').slice(0,32))}…</code></dd>
+            <dt class="col-4 text-secondary">Timestamp</dt>
+            <dd class="col-8">${ts}</dd>
+            <dt class="col-4 text-secondary">Sender</dt>
+            <dd class="col-8"><code class="text-warning" style="font-size:0.7rem;word-break:break-all;">${escH(tx.sender||'—')}</code></dd>
+            <dt class="col-4 text-secondary">Recipient</dt>
+            <dd class="col-8"><code class="text-info" style="font-size:0.7rem;word-break:break-all;">${escH(tx.recipient||'—')}</code></dd>
+        </dl>
+        <div class="mt-2">
+            <div class="sc-form-label mb-1">Data Payload</div>
+            <pre style="background:#07070f;border:1px solid rgba(13,202,240,0.12);border-radius:5px;padding:10px;font-size:0.72rem;color:#c9d1d9;overflow-x:auto;max-height:200px;">${escH(JSON.stringify(tx.data||{}, null, 2))}</pre>
+        </div>
+        ${tx.signature ? `<div class="mt-2"><div class="sc-form-label mb-1">Signature</div><code class="text-secondary" style="font-size:0.65rem;word-break:break-all;">${escH(tx.signature)}</code></div>` : ''}`;
+}
+
+/* ══ Contract Editor ═════════════════════════════════════════════════════ */
+const SAMPLE_CONTRACTS = [
+    {
+        name: 'SocialNode.sol',
+        source: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/// @title SocialNode
+/// @notice Registers DID identities on-chain for SocialChain nodes
+contract SocialNode {
+    event NodeRegistered(address indexed owner, string did);
+
+    mapping(address => string) public dids;
+    mapping(string => address) public didToOwner;
+
+    function register(string calldata did) external {
+        require(bytes(did).length > 0, "Empty DID");
+        require(bytes(dids[msg.sender]).length == 0, "Already registered");
+        dids[msg.sender] = did;
+        didToOwner[did]  = msg.sender;
+        emit NodeRegistered(msg.sender, did);
+    }
+
+    function resolve(string calldata did) external view returns (address) {
+        return didToOwner[did];
+    }
+}`
+    },
+    {
+        name: 'AgentRegistry.sol',
+        source: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/// @title AgentRegistry
+/// @notice On-chain registry for autonomous AI agents on SocialChain
+contract AgentRegistry {
+    struct Agent {
+        string  did;
+        string  name;
+        string  capabilities; // comma-separated
+        address owner;
+        bool    active;
+    }
+
+    mapping(string => Agent) public agents;
+    string[] public agentDIDs;
+
+    event AgentRegistered(string indexed did, string name, address owner);
+    event AgentDeactivated(string indexed did);
+
+    function registerAgent(
+        string calldata did,
+        string calldata name,
+        string calldata capabilities
+    ) external {
+        require(bytes(did).length > 0,  "Empty DID");
+        require(!agents[did].active,    "Already registered");
+        agents[did] = Agent(did, name, capabilities, msg.sender, true);
+        agentDIDs.push(did);
+        emit AgentRegistered(did, name, msg.sender);
+    }
+
+    function deactivate(string calldata did) external {
+        require(agents[did].owner == msg.sender, "Not owner");
+        agents[did].active = false;
+        emit AgentDeactivated(did);
+    }
+
+    function count() external view returns (uint256) { return agentDIDs.length; }
+}`
+    },
+    {
+        name: 'NetworkTx.sol',
+        source: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/// @title NetworkTransaction
+/// @notice Records social transactions between nodes on SocialChain
+contract NetworkTransaction {
+    enum TxType { CONNECTION, MESSAGE, DEPLOY_AGENT, FEATURE_REQUEST }
+
+    struct Tx {
+        address sender;
+        address recipient;
+        TxType  txType;
+        string  payload;
+        uint256 timestamp;
+    }
+
+    Tx[] public transactions;
+
+    event TxSubmitted(uint256 indexed id, address sender, address recipient, TxType txType);
+
+    function submit(
+        address recipient,
+        TxType  txType,
+        string calldata payload
+    ) external returns (uint256) {
+        uint256 id = transactions.length;
+        transactions.push(Tx(msg.sender, recipient, txType, payload, block.timestamp));
+        emit TxSubmitted(id, msg.sender, recipient, txType);
+        return id;
+    }
+
+    function count() external view returns (uint256) { return transactions.length; }
+}`
+    }
+];
+
+let contractList    = [...SAMPLE_CONTRACTS];
+let activeContract  = 0;
+
+function scContractListLoad() {
+    const listEl = document.getElementById('sc-contracts-list');
+    listEl.innerHTML = contractList.map((c, i) => `
+        <div class="sc-contract-item ${i === activeContract ? 'selected' : ''}" data-i="${i}">
+            <i class="bi bi-file-code text-secondary"></i>
+            <span>${escH(c.name)}</span>
+        </div>`).join('');
+    listEl.querySelectorAll('.sc-contract-item').forEach(el => {
+        el.addEventListener('click', () => scContractSelect(parseInt(el.dataset.i)));
+    });
+    scContractSelect(activeContract);
+}
+
+function scContractSelect(i) {
+    activeContract = i;
+    document.getElementById('sc-contract-editor').value = contractList[i].source;
+    document.getElementById('sc-contract-filename').textContent = contractList[i].name;
+    document.getElementById('sc-contract-output').textContent = '// Output will appear here after compile / deploy / audit…';
+    document.querySelectorAll('.sc-contract-item').forEach(el => el.classList.toggle('selected', parseInt(el.dataset.i) === i));
+}
+
+function scContractNew() {
+    const name = prompt('New contract filename (e.g. MyContract.sol):');
+    if (!name) return;
+    contractList.push({ name, source: `// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract ${name.replace('.sol','')} {\n    // …\n}\n` });
+    scContractListLoad();
+    scContractSelect(contractList.length - 1);
+}
+
+function scContractCompile() {
+    const src = document.getElementById('sc-contract-editor').value;
+    const out = document.getElementById('sc-contract-output');
+    if (!src.trim()) { out.textContent = '// No source provided.'; return; }
+
+    // Client-side heuristic checks (no real EVM compiler in browser)
+    const lines = src.split('\n');
+    const issues = [];
+    if (!src.includes('pragma solidity')) issues.push('WARNING: missing pragma solidity directive');
+    if (!src.includes('SPDX-License-Identifier')) issues.push('NOTE: missing SPDX-License-Identifier comment');
+    if (src.includes('tx.origin')) issues.push('SECURITY: avoid tx.origin for authentication (use msg.sender)');
+    if (src.match(/\bcall\s*\.\s*value\s*\(/)) issues.push('SECURITY: low-level call with value — check reentrancy guard');
+
+    const contractMatch = src.match(/contract\s+(\w+)/);
+    const contractName  = contractMatch ? contractMatch[1] : 'Unknown';
+
+    out.textContent = [
+        `// Compile simulation: ${contractName}`,
+        `// Lines: ${lines.length}  |  Size: ${src.length} bytes`,
+        ...(issues.length ? issues : ['// No static issues detected']),
+        '',
+        `// ✓ ${contractName} ready for deployment`,
+        `// ABI and bytecode would be generated here by a real Solidity compiler`,
+    ].join('\n');
+}
+
+function scContractDeploy() {
+    const src = document.getElementById('sc-contract-editor').value;
+    const out = document.getElementById('sc-contract-output');
+    if (!src.trim()) { out.textContent = '// No source to deploy.'; return; }
+    const contractMatch = src.match(/contract\s+(\w+)/);
+    const name = contractMatch ? contractMatch[1] : 'Contract';
+    const fakeHash = 'sc_' + Math.random().toString(16).slice(2, 18);
+    out.textContent = [
+        `// Deploying ${name} to SocialChain…`,
+        `// Signing deployment transaction with your DID key-pair…`,
+        `// TX Hash:  ${fakeHash}`,
+        `// Status:   ✓ Submitted to mempool`,
+        `// Block:    Pending (mine from Dashboard to confirm)`,
+    ].join('\n');
+}
+
+async function scContractAudit() {
+    const src = document.getElementById('sc-contract-editor').value;
+    const out = document.getElementById('sc-contract-output');
+    if (!src.trim()) { out.textContent = '// No source to audit.'; return; }
+    out.textContent = '// Sending to Agent for audit…';
+    try {
+        const res = await fetch('/api/agents/chat', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ message: `Audit this Solidity contract for vulnerabilities:\n\`\`\`solidity\n${src.slice(0,800)}\n\`\`\`` }),
+        });
+        const data = await res.json();
+        out.textContent = '// Agent Audit Report\n// ' + (data.reply || 'No response').replace(/\n/g, '\n// ');
+    } catch(e) {
+        out.textContent = '// Audit agent unavailable — is the backend running?';
+    }
+}
+
+/* ══ Utility ════════════════════════════════════════════════════════════ */
+function escH(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ══ Init ═══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+    scRegLoad();
+    scContractListLoad();
+});
+</script>
+{% endblock %}

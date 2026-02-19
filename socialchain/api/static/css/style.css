@@ -257,6 +257,297 @@ code { color: #ffc107; }
     font-size: 0.82rem;
 }
 
+/* =====================================================
+   VS Code-style Workbench Shell
+   ===================================================== */
+
+/* The outer shell is a full-viewport column flex */
+body.sc-workbench {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: #050510;
+}
+
+/* Title bar (top) */
+.sc-titlebar {
+    flex-shrink: 0;
+    height: 30px;
+    background: #0a0a18;
+    border-bottom: 1px solid rgba(13,202,240,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    -webkit-app-region: drag;          /* Electron: drag to move window */
+    user-select: none;
+    z-index: 100;
+}
+.sc-titlebar * { -webkit-app-region: no-drag; }
+.sc-titlebar-title {
+    font-size: 0.72rem;
+    color: #6c757d;
+    letter-spacing: 0.5px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.sc-titlebar-brand {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #0dcaf0;
+    letter-spacing: 1px;
+    text-decoration: none;
+}
+.sc-titlebar-brand:hover { color: #0dcaf0; }
+
+/* Workbench body row: activity-bar + sidebar + main + chat-panel */
+.sc-workbench-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* ── Activity Bar (far left, VS Code style) ── */
+.sc-activity-bar {
+    flex-shrink: 0;
+    width: 48px;
+    background: #0a0a18;
+    border-right: 1px solid rgba(13,202,240,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 4px;
+    gap: 2px;
+    z-index: 50;
+}
+.sc-ab-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    position: relative;
+    text-decoration: none;
+}
+.sc-ab-btn:hover {
+    color: #e0e0e0;
+    background: rgba(255,255,255,0.06);
+}
+.sc-ab-btn.active {
+    color: #0dcaf0;
+    background: rgba(13,202,240,0.1);
+}
+.sc-ab-btn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 52px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1a1a2e;
+    border: 1px solid rgba(13,202,240,0.3);
+    color: #e0e0e0;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 9999;
+}
+.sc-ab-btn:hover::after { opacity: 1; }
+.sc-ab-spacer { flex: 1; }
+.sc-ab-separator {
+    width: 28px;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+    margin: 4px 0;
+}
+
+/* ── Main content area ── */
+.sc-main-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+/* Wrap the existing container-fluid padding */
+.sc-main-area > .container-fluid {
+    flex: 1;
+}
+
+/* ── Agent Chat Panel (right side, collapsible) ── */
+.sc-chat-panel {
+    flex-shrink: 0;
+    width: 0;
+    overflow: hidden;
+    background: #0a0a1a;
+    border-left: 1px solid rgba(13,202,240,0.12);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.25s ease;
+    position: relative;
+    z-index: 40;
+}
+.sc-chat-panel.open { width: 340px; }
+
+.sc-chat-header {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(13,202,240,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    white-space: nowrap;
+}
+.sc-chat-header-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #0dcaf0;
+    letter-spacing: 0.5px;
+}
+.sc-chat-agent-select {
+    background: #0d0d1e;
+    border: 1px solid rgba(13,202,240,0.25);
+    color: #adb5bd;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    max-width: 130px;
+}
+.sc-chat-agent-select:focus {
+    outline: none;
+    border-color: #0dcaf0;
+}
+
+.sc-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 300px;
+}
+.sc-chat-msg {
+    max-width: 94%;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    border-radius: 8px;
+    padding: 8px 12px;
+    word-break: break-word;
+}
+.sc-chat-msg.user {
+    align-self: flex-end;
+    background: rgba(13,202,240,0.12);
+    border: 1px solid rgba(13,202,240,0.25);
+    color: #e0e0e0;
+}
+.sc-chat-msg.agent {
+    align-self: flex-start;
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.25);
+    color: #c4b5fd;
+}
+.sc-chat-msg .sc-chat-sender {
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+    opacity: 0.7;
+    text-transform: uppercase;
+}
+.sc-chat-msg.user .sc-chat-sender { color: #0dcaf0; }
+.sc-chat-msg.agent .sc-chat-sender { color: #a78bfa; }
+
+.sc-chat-input-row {
+    flex-shrink: 0;
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    border-top: 1px solid rgba(13,202,240,0.12);
+    min-width: 300px;
+}
+.sc-chat-input {
+    flex: 1;
+    background: #0d0d1e;
+    border: 1px solid rgba(13,202,240,0.2);
+    color: #e0e0e0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    resize: none;
+    min-height: 36px;
+    max-height: 100px;
+}
+.sc-chat-input:focus {
+    outline: none;
+    border-color: #0dcaf0;
+    box-shadow: 0 0 6px rgba(13,202,240,0.2);
+}
+.sc-chat-send-btn {
+    background: rgba(13,202,240,0.12);
+    border: 1px solid rgba(13,202,240,0.35);
+    color: #0dcaf0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.15s;
+}
+.sc-chat-send-btn:hover {
+    background: rgba(13,202,240,0.25);
+}
+.sc-chat-thinking {
+    font-size: 0.72rem;
+    color: #6c757d;
+    padding: 2px 4px;
+    display: none;
+}
+
+/* ── Status Bar (bottom) ── */
+.sc-statusbar {
+    flex-shrink: 0;
+    height: 22px;
+    background: #060612;
+    border-top: 1px solid rgba(13,202,240,0.1);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 16px;
+    font-size: 0.68rem;
+    color: #6c757d;
+    user-select: none;
+    z-index: 100;
+}
+.sc-statusbar-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: default;
+    white-space: nowrap;
+}
+.sc-statusbar-item.clickable { cursor: pointer; }
+.sc-statusbar-item.clickable:hover { color: #e0e0e0; }
+.sc-statusbar-item .sc-status-dot { width: 6px; height: 6px; margin: 0; }
+.sc-statusbar-sep { width: 1px; height: 12px; background: rgba(255,255,255,0.1); }
+
+/* Navbar needs no left margin inside workbench */
+.sc-workbench .navbar { border-radius: 0; }
+
+/* In workbench mode the bg canvas covers the whole viewport */
+.sc-workbench #sc-bg-canvas { position: fixed; }
+
 /* ── Network toggle buttons ── */
 .sc-toggle-btn {
     background: rgba(13,202,240,0.08);
