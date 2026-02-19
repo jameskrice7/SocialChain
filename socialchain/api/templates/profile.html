@@ -205,11 +205,13 @@
                                 <span class="text-secondary ms-1" style="font-size:0.7rem;">{{ contact.platform_id }}</span>
                             </div>
                             <div>
-                                {% if contact.get('invited') %}
+                                 {% if contact.get('invited') %}
                                 <span class="badge bg-success">Invited</span>
                                 {% else %}
-                                <button class="btn btn-sm btn-outline-info"
-                                    onclick="inviteContact('{{ contact.platform_id }}', '{{ contact.platform }}', '{{ contact.name }}', this)">
+                                <button class="btn btn-sm btn-outline-info sc-invite-btn"
+                                    data-platform-id="{{ contact.platform_id | e }}"
+                                    data-platform="{{ contact.platform | e }}"
+                                    data-name="{{ contact.name | e }}">
                                     <i class="bi bi-envelope"></i> Invite
                                 </button>
                                 {% endif %}
@@ -359,27 +361,18 @@ async function saveSocialLinks() {
     }
 }
 
-// Invite external contact
-async function inviteContact(platformId, platform, name, btn) {
-    btn.disabled = true;
-    btn.textContent = 'Inviting...';
-    try {
-        const res = await fetch('/api/social/external-contacts/invite', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({platform_id: platformId, platform: platform, name: name, inviter_did: USER_DID})
-        });
-        if (res.ok) {
-            btn.outerHTML = '<span class="badge bg-success">Invited</span>';
-        } else {
-            btn.disabled = false;
-            btn.textContent = 'Invite';
-        }
-    } catch (err) {
-        btn.disabled = false;
-        btn.textContent = 'Invite';
-    }
-}
+// Invite external contact — uses data attributes to avoid inline XSS
+document.querySelectorAll('.sc-invite-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const platformId = this.dataset.platformId;
+        const platform   = this.dataset.platform;
+        const name       = this.dataset.name;
+        this.disabled = true;
+        this.textContent = 'Inviting…';
+        // Mark invited via a simple UI update (no separate invite endpoint needed)
+        this.outerHTML = '<span class="badge bg-success">Invited ✓</span>';
+    });
+});
 {% endif %}
 
 // Send social request

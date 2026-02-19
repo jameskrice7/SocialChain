@@ -289,7 +289,7 @@ function renderNetwork() {
             const ext = profile.metadata && profile.metadata.external_contacts;
             if (!Array.isArray(ext)) return;
             ext.forEach(contact => {
-                const extId = `ext:${profile.did}:${contact.platform}:${contact.id || contact.username}`;
+                const extId = `ext:${profile.did}:${contact.platform}:${contact.platform_id || contact.name}`;
                 if (!nodes.find(n => n.id === extId)) {
                     nodes.push({
                         id:       extId,
@@ -641,8 +641,16 @@ function inviteContact(contactOrId) {
     const contact = typeof contactOrId === 'string'
         ? { id: contactOrId }
         : contactOrId;
-    const name = contact.username || contact.name || contact.id || 'this contact';
-    alert(`Invite sent to ${name}!\n(Feature coming soon)`);
+    const name = escHtml(contact.username || contact.name || contact.id || 'this contact');
+    const nodeDetail = document.getElementById('node-detail');
+    const existing = nodeDetail.querySelector('#invite-feedback');
+    if (existing) existing.remove();
+    const feedback = document.createElement('div');
+    feedback.id = 'invite-feedback';
+    feedback.className = 'alert alert-success alert-sm mt-2 py-1 px-2 small';
+    feedback.textContent = `Invite sent to ${name}! (Feature coming soon)`;
+    nodeDetail.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 3000);
 }
 
 /* ─── Utility ───────────────────────────────────────────────────── */

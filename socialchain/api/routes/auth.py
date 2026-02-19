@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+import time
 from ..auth import create_user
 from ...social.profile import Profile, DeviceType
+from ...blockchain.transaction import Transaction
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -29,8 +31,6 @@ def login():
             session["username"] = user.username
             session["agent_type"] = user.agent_type
             # Record login status on blockchain
-            from ...blockchain.transaction import Transaction
-            import time
             tx = Transaction(
                 sender=user.did,
                 recipient="NETWORK",

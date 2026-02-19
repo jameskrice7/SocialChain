@@ -421,7 +421,15 @@ async function loadSocialLinks() {
         for (const [platform, elId] of Object.entries(PLATFORM_STATUS_IDS)) {
             const el = document.getElementById(elId);
             if (currentSocialLinks[platform]) {
-                el.innerHTML = `<a href="${currentSocialLinks[platform]}" target="_blank" class="text-info" style="font-size:0.7rem;word-break:break-all;">${currentSocialLinks[platform].substring(0,28)}…</a>`;
+                const a = document.createElement('a');
+                a.href = currentSocialLinks[platform];
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.className = 'text-info';
+                a.style.cssText = 'font-size:0.7rem;word-break:break-all;';
+                a.textContent = currentSocialLinks[platform].substring(0, 28) + '…';
+                el.innerHTML = '';
+                el.appendChild(a);
             }
         }
         loadExternalContacts(data.profile.metadata);
