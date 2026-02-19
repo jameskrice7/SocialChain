@@ -1,40 +1,286 @@
+/* =====================================================
+   SocialChain – Cyber Dark Theme with Neon Accents
+   ===================================================== */
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #0dcaf0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
+
+/* Base */
 body {
     min-height: 100vh;
+    background: #050510;
+    font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
-.block-card {
-    background: #0a0a0a;
-    transition: border-color 0.2s;
+/* Full-screen canvas background */
+#sc-bg-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
 }
 
-.block-card:hover {
-    border-color: #ffc107 !important;
+/* Keep all content above the canvas */
+.navbar, .container-fluid, .container, .modal {
+    position: relative;
+    z-index: 1;
 }
 
-.form-control:focus,
-.form-select:focus {
-    background-color: #1a1a1a;
-    color: #fff;
-    border-color: #0dcaf0;
-    box-shadow: 0 0 0 0.25rem rgba(13, 202, 240, 0.15);
+/* ── Gradient heading text ── */
+.sc-glow-text {
+    background: linear-gradient(135deg, #0dcaf0 0%, #7c3aed 50%, #0dcaf0 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 4s linear infinite;
 }
 
-code {
-    color: #ffc107;
+@keyframes gradientShift {
+    0%   { background-position: 0% center; }
+    100% { background-position: 200% center; }
 }
 
+/* ── Cards ── */
 .card {
+    border-radius: 8px;
+    background: rgba(10, 10, 20, 0.88);
+    backdrop-filter: blur(8px);
+}
+
+.border-info    { border-color: #0dcaf0 !important; box-shadow: 0 0 12px rgba(13,202,240,0.2); }
+.border-warning { border-color: #ffc107 !important; box-shadow: 0 0 12px rgba(255,193,7,0.2); }
+.border-success { border-color: #198754 !important; box-shadow: 0 0 12px rgba(25,135,84,0.2); }
+
+/* Animated verified card border */
+.card-verified {
+    border: 2px solid #0dcaf0 !important;
+    animation: borderRotate 3s ease-in-out infinite;
+}
+
+@keyframes borderRotate {
+    0%   { border-color: #0dcaf0; box-shadow: 0 0 20px rgba(13,202,240,0.35); }
+    50%  { border-color: #7c3aed; box-shadow: 0 0 20px rgba(124,58,237,0.35); }
+    100% { border-color: #0dcaf0; box-shadow: 0 0 20px rgba(13,202,240,0.35); }
+}
+
+/* ── Blockchain badge ── */
+.sc-chain-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: rgba(25,135,84,0.15);
+    border: 1px solid #198754;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: #198754;
+    box-shadow: 0 0 8px rgba(25,135,84,0.3);
+}
+
+/* ── Social platform badges ── */
+.sc-social-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.sc-social-badge.facebook  { background: rgba(24,119,242,0.15); border: 1px solid #1877f2; color: #1877f2; }
+.sc-social-badge.linkedin  { background: rgba(10,102,194,0.15); border: 1px solid #0a66c2; color: #0a66c2; }
+.sc-social-badge.instagram { background: rgba(225,48,108,0.15); border: 1px solid #e1306c; color: #e1306c; }
+.sc-social-badge.youtube   { background: rgba(255,0,0,0.15);    border: 1px solid #ff0000; color: #ff0000; }
+
+/* ── External (non-SC) node ── */
+.sc-external-node {
+    opacity: 0.55;
+    border: 2px dashed #6c757d !important;
     border-radius: 8px;
 }
 
-.navbar-brand {
-    letter-spacing: 1px;
+/* ── Neon button ── */
+.sc-neon-btn {
+    background: transparent;
+    border: 1px solid #0dcaf0;
+    color: #0dcaf0;
+    border-radius: 4px;
+    padding: 6px 16px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.25s;
+}
+.sc-neon-btn:hover {
+    background: rgba(13,202,240,0.15);
+    box-shadow: 0 0 14px rgba(13,202,240,0.5);
+    color: #fff;
 }
 
-#network-svg {
-    background: #0a0a0a;
+/* ── Pulsing status dot ── */
+.sc-status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #198754;
+    box-shadow: 0 0 0 0 rgba(25,135,84,0.7);
+    animation: pulseDot 1.8s ease-in-out infinite;
+    vertical-align: middle;
+    margin-right: 4px;
 }
 
-.list-group-item-action:hover {
-    background-color: #1a1a2e !important;
+@keyframes pulseDot {
+    0%   { box-shadow: 0 0 0 0   rgba(25,135,84,0.7); }
+    70%  { box-shadow: 0 0 0 6px rgba(25,135,84,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(25,135,84,0);   }
+}
+
+/* ── Block cards ── */
+.block-card {
+    background: rgba(10,10,20,0.9);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    border: 1px solid #1a2a3a !important;
+}
+.block-card:hover {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 14px rgba(255,193,7,0.35);
+}
+
+/* ── Chain arrow pulse ── */
+.chain-arrow {
+    animation: arrowPulse 1.5s ease-in-out infinite;
+    color: #0dcaf0;
+}
+
+@keyframes arrowPulse {
+    0%, 100% { opacity: 1;   transform: translateX(0);    }
+    50%       { opacity: 0.4; transform: translateX(-3px); }
+}
+
+/* ── Form controls ── */
+.form-control:focus,
+.form-select:focus {
+    background-color: #0d0d1a;
+    color: #fff;
+    border-color: #0dcaf0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 202, 240, 0.2);
+}
+
+/* ── Misc ── */
+code { color: #ffc107; }
+
+.navbar-brand { letter-spacing: 1px; }
+
+#network-svg { background: rgba(5,5,16,0.85); }
+
+.list-group-item-action:hover { background-color: #0d1a2e !important; }
+
+/* ── Hexagonal avatar frame ── */
+.sc-hex-avatar {
+    width: 90px; height: 90px;
+    clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    background: linear-gradient(135deg, #0dcaf0, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.5rem;
+    margin: 0 auto 0.75rem;
+    animation: hexPulse 3s ease-in-out infinite;
+}
+
+@keyframes hexPulse {
+    0%, 100% { filter: drop-shadow(0 0 6px  rgba(13,202,240,0.6)); }
+    50%       { filter: drop-shadow(0 0 14px rgba(124,58,237,0.8)); }
+}
+
+/* ── Login/Register hex graphic animations ── */
+@keyframes hexPulseRing {
+    0%, 100% { opacity: 0.7; transform: scale(1);    }
+    50%       { opacity: 1;   transform: scale(1.04); }
+}
+
+@keyframes hexSpin {
+    from { transform: rotate(0deg);   }
+    to   { transform: rotate(360deg); }
+}
+
+.sc-hex-ring  { animation: hexPulseRing 2.5s ease-in-out infinite; }
+.sc-hex-outer { transform-origin: 160px 130px; animation: hexSpin 25s linear infinite; }
+
+/* ── Counter entrance animation ── */
+@keyframes countUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+.stat-counter { animation: countUp 0.6s ease-out both; }
+
+/* ── QR placeholder ── */
+.sc-qr-placeholder {
+    width: 100px; height: 100px;
+    border: 2px dashed #0dcaf0;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: #0dcaf0;
+    font-size: 0.65rem;
+    text-align: center;
+    margin: 0 auto;
+    background: repeating-linear-gradient(
+        45deg, transparent, transparent 4px,
+        rgba(13,202,240,0.05) 4px, rgba(13,202,240,0.05) 8px
+    );
+}
+
+/* ── Social platform tile ── */
+.sc-platform-tile {
+    border-radius: 10px;
+    border: 1px solid #2a2a3a;
+    padding: 16px;
+    background: rgba(10,10,25,0.9);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+.sc-platform-tile:hover       { border-color: #0dcaf0; box-shadow: 0 0 12px rgba(13,202,240,0.2); }
+.sc-platform-tile.facebook:hover  { border-color: #1877f2; box-shadow: 0 0 12px rgba(24,119,242,0.3); }
+.sc-platform-tile.linkedin:hover  { border-color: #0a66c2; box-shadow: 0 0 12px rgba(10,102,194,0.3); }
+.sc-platform-tile.instagram:hover { border-color: #e1306c; box-shadow: 0 0 12px rgba(225,48,108,0.3); }
+.sc-platform-tile.youtube:hover   { border-color: #ff0000; box-shadow: 0 0 12px rgba(255,0,0,0.3); }
+
+/* ── Activity feed ── */
+.sc-activity-item {
+    border-left: 3px solid #0dcaf0;
+    padding: 6px 12px;
+    margin-bottom: 8px;
+    background: rgba(13,202,240,0.04);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.82rem;
+}
+
+/* ── Network toggle buttons ── */
+.sc-toggle-btn {
+    background: rgba(13,202,240,0.08);
+    border: 1px solid #0dcaf0;
+    color: #0dcaf0;
+    padding: 4px 16px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.sc-toggle-btn.active, .sc-toggle-btn:hover {
+    background: rgba(13,202,240,0.2);
+    box-shadow: 0 0 10px rgba(13,202,240,0.3);
+    color: #fff;
+}
+
+/* ── Navbar brand pulse ring ── */
+.sc-brand-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #198754;
+    animation: pulseDot 2s ease-in-out infinite;
+    vertical-align: middle;
+    margin-left: 6px;
 }

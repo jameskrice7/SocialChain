@@ -2,49 +2,94 @@
 {% block title %}Dashboard - SocialChain{% endblock %}
 {% block content %}
 <div class="row g-3">
-    <!-- Blockchain Stats -->
+
+    <!-- ── Header ── -->
     <div class="col-12">
-        <h4 class="text-info"><i class="bi bi-grid"></i> Dashboard</h4>
-        <p class="text-secondary">Node identity: <code class="text-warning">{{ user_did }}</code></p>
+        <h4 class="sc-glow-text fw-bold mb-0"><i class="bi bi-grid text-info"></i> Dashboard</h4>
+        <p class="text-secondary mb-0">Node identity: <code class="text-warning">{{ user_did }}</code></p>
     </div>
+
+    <!-- ── Stat cards ── -->
     <div class="col-md-3">
         <div class="card bg-black border-info text-center p-3">
-            <div class="display-4 text-info fw-bold" id="chain-length">{{ chain.length }}</div>
-            <div class="text-secondary">Blocks in Chain</div>
+            <i class="bi bi-boxes text-info" style="font-size:1.5rem;opacity:0.4;"></i>
+            <div class="display-4 text-info fw-bold stat-counter" id="chain-length">{{ chain.length }}</div>
+            <div class="text-secondary small">Blocks in Chain</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card bg-black border-warning text-center p-3">
-            <div class="display-4 text-warning fw-bold" id="pending-count">{{ chain.pending_transactions | length }}</div>
-            <div class="text-secondary">Pending Transactions</div>
+            <i class="bi bi-hourglass-split text-warning" style="font-size:1.5rem;opacity:0.4;"></i>
+            <div class="display-4 text-warning fw-bold stat-counter" id="pending-count">{{ chain.pending_transactions | length }}</div>
+            <div class="text-secondary small">Pending Transactions</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card bg-black border-success text-center p-3">
-            <div class="display-4 text-success fw-bold" id="tx-total">-</div>
-            <div class="text-secondary">Total Transactions</div>
+            <i class="bi bi-activity text-success" style="font-size:1.5rem;opacity:0.4;"></i>
+            <div class="display-4 text-success fw-bold stat-counter" id="tx-total">-</div>
+            <div class="text-secondary small">Total Transactions</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card bg-black border-secondary text-center p-3">
-            <div class="display-4 text-light fw-bold" id="peer-count">-</div>
-            <div class="text-secondary">Network Peers</div>
+            <i class="bi bi-diagram-3 text-light" style="font-size:1.5rem;opacity:0.4;"></i>
+            <div class="display-4 text-light fw-bold stat-counter" id="peer-count">-</div>
+            <div class="text-secondary small">Network Peers</div>
         </div>
     </div>
 
-    <!-- Actions -->
+    <!-- ── Blockchain Status row ── -->
+    <div class="col-md-6">
+        <div class="card bg-black border-success">
+            <div class="card-header border-secondary"><i class="bi bi-shield-check text-success"></i> Blockchain Status</div>
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="sc-status-dot"></span>
+                    <span class="text-success fw-bold small">Your node is blockchain-verified</span>
+                </div>
+                <div class="text-secondary small mb-1">
+                    Last verified: <span id="last-verified-time" class="text-light">Loading…</span>
+                </div>
+                <div class="text-secondary small mb-3">
+                    Status: <span class="sc-chain-badge" id="chain-status">
+                        <i class="bi bi-check-circle-fill"></i> VERIFIED
+                    </span>
+                </div>
+                <button class="btn btn-sm btn-outline-success sc-neon-btn" id="reverify-btn"
+                        style="border-color:#198754;color:#198754;">
+                    <i class="bi bi-arrow-repeat"></i> Re-verify on Chain
+                </button>
+                <span id="verify-result" class="ms-2 small"></span>
+            </div>
+        </div>
+    </div>
     <div class="col-md-6">
         <div class="card bg-black border-secondary">
-            <div class="card-header border-secondary"><i class="bi bi-send"></i> Send Transaction</div>
+            <div class="card-header border-secondary"><i class="bi bi-people text-info"></i> Recently Active Nodes</div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" id="active-nodes-list" style="max-height:140px;overflow-y:auto;">
+                    <div class="p-3 text-secondary small">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Actions ── -->
+    <div class="col-md-6">
+        <div class="card bg-black border-secondary">
+            <div class="card-header border-secondary"><i class="bi bi-send text-info"></i> Send Transaction</div>
             <div class="card-body">
                 <form id="tx-form">
                     <div class="mb-2">
                         <label class="form-label text-secondary small">Recipient DID</label>
-                        <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" id="tx-recipient" placeholder="did:socialchain:..." required>
+                        <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+                               id="tx-recipient" placeholder="did:socialchain:..." required>
                     </div>
                     <div class="mb-2">
                         <label class="form-label text-secondary small">Message / Data (JSON)</label>
-                        <textarea class="form-control form-control-sm bg-dark text-light border-secondary" id="tx-data" rows="3" placeholder='{"message": "Hello!"}'></textarea>
+                        <textarea class="form-control form-control-sm bg-dark text-light border-secondary"
+                                  id="tx-data" rows="3" placeholder='{"message": "Hello!"}'></textarea>
                     </div>
                     <button type="submit" class="btn btn-sm btn-info">Send</button>
                     <span id="tx-result" class="ms-2 small text-success"></span>
@@ -52,29 +97,138 @@
             </div>
         </div>
     </div>
-
     <div class="col-md-6">
         <div class="card bg-black border-secondary">
-            <div class="card-header border-secondary"><i class="bi bi-hammer"></i> Mine Block</div>
+            <div class="card-header border-secondary"><i class="bi bi-hammer text-warning"></i> Mine Block</div>
             <div class="card-body">
-                <p class="text-secondary small">Mine all pending transactions into a new block. You earn a mining reward.</p>
-                <button class="btn btn-sm btn-warning" id="mine-btn">Mine Block</button>
+                <p class="text-secondary small">Mine all pending transactions into a new block.</p>
+                <button class="btn btn-sm btn-warning" id="mine-btn">
+                    <i class="bi bi-hammer"></i> Mine Block
+                </button>
                 <span id="mine-result" class="ms-2 small text-warning"></span>
+                <div class="mt-3">
+                    <span class="badge bg-warning text-dark" id="verify-all-badge" style="cursor:pointer;"
+                          onclick="verifyAllPending()" title="Verify all pending transactions">
+                        <i class="bi bi-patch-check"></i> Verify All Pending
+                    </span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Blockchain Visualization -->
+    <!-- ── Social Media Connections ── -->
     <div class="col-12">
         <div class="card bg-black border-secondary">
-            <div class="card-header border-secondary"><i class="bi bi-boxes"></i> Blockchain</div>
+            <div class="card-header border-secondary">
+                <i class="bi bi-share text-info"></i> Social Media Connections
+            </div>
+            <div class="card-body">
+                <div class="row g-3" id="social-platform-tiles">
+                    <!-- Facebook -->
+                    <div class="col-6 col-md-3">
+                        <div class="sc-platform-tile facebook text-center" id="tile-facebook">
+                            <i class="bi bi-facebook" style="font-size:2rem;color:#1877f2;"></i>
+                            <div class="fw-bold mt-1 small text-light">Facebook</div>
+                            <div class="text-secondary small mt-1" id="fb-status">Not connected</div>
+                            <button class="btn btn-sm mt-2 sc-neon-btn" style="border-color:#1877f2;color:#1877f2;font-size:0.75rem;"
+                                    onclick="toggleLinkForm('facebook')">
+                                <i class="bi bi-link-45deg"></i> Link Account
+                            </button>
+                            <div id="form-facebook" class="mt-2 d-none">
+                                <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       id="url-facebook" placeholder="Profile URL">
+                                <button class="btn btn-sm btn-outline-secondary w-100 mt-1"
+                                        onclick="saveSocialLink('facebook')">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- LinkedIn -->
+                    <div class="col-6 col-md-3">
+                        <div class="sc-platform-tile linkedin text-center" id="tile-linkedin">
+                            <i class="bi bi-linkedin" style="font-size:2rem;color:#0a66c2;"></i>
+                            <div class="fw-bold mt-1 small text-light">LinkedIn</div>
+                            <div class="text-secondary small mt-1" id="li-status">Not connected</div>
+                            <button class="btn btn-sm mt-2 sc-neon-btn" style="border-color:#0a66c2;color:#0a66c2;font-size:0.75rem;"
+                                    onclick="toggleLinkForm('linkedin')">
+                                <i class="bi bi-link-45deg"></i> Link Account
+                            </button>
+                            <div id="form-linkedin" class="mt-2 d-none">
+                                <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       id="url-linkedin" placeholder="Profile URL">
+                                <button class="btn btn-sm btn-outline-secondary w-100 mt-1"
+                                        onclick="saveSocialLink('linkedin')">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Instagram -->
+                    <div class="col-6 col-md-3">
+                        <div class="sc-platform-tile instagram text-center" id="tile-instagram">
+                            <i class="bi bi-instagram" style="font-size:2rem;color:#e1306c;"></i>
+                            <div class="fw-bold mt-1 small text-light">Instagram</div>
+                            <div class="text-secondary small mt-1" id="ig-status">Not connected</div>
+                            <button class="btn btn-sm mt-2 sc-neon-btn" style="border-color:#e1306c;color:#e1306c;font-size:0.75rem;"
+                                    onclick="toggleLinkForm('instagram')">
+                                <i class="bi bi-link-45deg"></i> Link Account
+                            </button>
+                            <div id="form-instagram" class="mt-2 d-none">
+                                <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       id="url-instagram" placeholder="Profile URL">
+                                <button class="btn btn-sm btn-outline-secondary w-100 mt-1"
+                                        onclick="saveSocialLink('instagram')">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- YouTube -->
+                    <div class="col-6 col-md-3">
+                        <div class="sc-platform-tile youtube text-center" id="tile-youtube">
+                            <i class="bi bi-youtube" style="font-size:2rem;color:#ff0000;"></i>
+                            <div class="fw-bold mt-1 small text-light">YouTube</div>
+                            <div class="text-secondary small mt-1" id="yt-status">Not connected</div>
+                            <button class="btn btn-sm mt-2 sc-neon-btn" style="border-color:#ff0000;color:#ff0000;font-size:0.75rem;"
+                                    onclick="toggleLinkForm('youtube')">
+                                <i class="bi bi-link-45deg"></i> Link Account
+                            </button>
+                            <div id="form-youtube" class="mt-2 d-none">
+                                <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       id="url-youtube" placeholder="Channel URL">
+                                <button class="btn btn-sm btn-outline-secondary w-100 mt-1"
+                                        onclick="saveSocialLink('youtube')">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- External Contacts -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="text-secondary small fw-bold text-uppercase" style="letter-spacing:1px;">
+                            <i class="bi bi-person-lines-fill"></i> External Contacts
+                        </div>
+                        <button class="btn btn-sm sc-neon-btn" onclick="showAddExternalModal()" style="font-size:0.75rem;">
+                            <i class="bi bi-plus-circle"></i> Add Contact
+                        </button>
+                    </div>
+                    <div id="external-contacts-list" class="row g-2">
+                        <div class="col-12 text-secondary small">No external contacts yet. Import from your social platforms.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Blockchain Visualization ── -->
+    <div class="col-12">
+        <div class="card bg-black border-secondary">
+            <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-boxes text-info"></i> Blockchain</span>
+            </div>
             <div class="card-body p-0">
                 <div id="blockchain-container" class="overflow-auto p-3" style="min-height:200px;"></div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Blocks Table -->
+    <!-- ── Recent Blocks Table ── -->
     <div class="col-12">
         <div class="card bg-black border-secondary">
             <div class="card-header border-secondary"><i class="bi bi-list-ul"></i> Recent Blocks</div>
@@ -82,12 +236,7 @@
                 <div class="table-responsive">
                     <table class="table table-dark table-sm table-hover mb-0">
                         <thead class="text-secondary">
-                            <tr>
-                                <th>#</th>
-                                <th>Hash</th>
-                                <th>Transactions</th>
-                                <th>Timestamp</th>
-                            </tr>
+                            <tr><th>#</th><th>Hash</th><th>Transactions</th><th>Timestamp</th></tr>
                         </thead>
                         <tbody id="blocks-table"></tbody>
                     </table>
@@ -96,13 +245,49 @@
         </div>
     </div>
 </div>
+
+<!-- Add External Contact Modal -->
+<div class="modal fade" id="addExtModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-black border-secondary">
+            <div class="modal-header border-secondary">
+                <h6 class="modal-title text-info"><i class="bi bi-person-plus"></i> Add External Contact</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label text-secondary small">Name</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary form-control-sm" id="ext-name">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label text-secondary small">Platform</label>
+                    <select class="form-select bg-dark text-light border-secondary form-select-sm" id="ext-platform">
+                        <option value="facebook">Facebook</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="youtube">YouTube</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label text-secondary small">Platform ID / Handle (optional)</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary form-control-sm" id="ext-platform-id">
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-info" onclick="addExternalContact()">Add Contact</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 const USER_DID = "{{ user_did }}";
 const CHAIN_DATA = {{ chain | tojson }};
 
-// Render blockchain visualization
+// ── Blockchain rendering ──────────────────────────────────────────────────
 function renderBlockchain(chain) {
     const container = document.getElementById('blockchain-container');
     container.innerHTML = '';
@@ -113,36 +298,34 @@ function renderBlockchain(chain) {
     blocks.forEach(b => { totalTx += (b.transactions || []).length; });
     document.getElementById('tx-total').textContent = totalTx;
 
-    // Visual chain blocks
     const wrapper = document.createElement('div');
     wrapper.className = 'd-flex flex-nowrap align-items-center';
     blocks.slice().reverse().forEach((block, idx) => {
         const card = document.createElement('div');
         card.className = 'block-card me-2 p-2 rounded border text-center flex-shrink-0';
-        card.style.cssText = 'min-width:120px;border-color:#0dcaf0!important;';
+        card.style.cssText = 'min-width:130px;border-color:#0dcaf0!important;box-shadow:0 0 10px rgba(13,202,240,0.25);';
         card.innerHTML = `
             <div class="text-info small fw-bold">Block #${block.index}</div>
-            <div class="text-secondary" style="font-size:0.65rem;">${(block.hash || '').substring(0,12)}...</div>
-            <div class="badge bg-secondary mt-1">${(block.transactions || []).length} tx</div>
+            <div class="text-secondary" style="font-size:0.62rem;">${(block.hash||'').substring(0,14)}…</div>
+            <div class="badge bg-secondary mt-1">${(block.transactions||[]).length} tx</div>
         `;
         wrapper.appendChild(card);
         if (idx < blocks.length - 1) {
             const arrow = document.createElement('div');
-            arrow.className = 'text-secondary me-2 flex-shrink-0';
-            arrow.innerHTML = '&larr;';
+            arrow.className = 'chain-arrow me-2 flex-shrink-0';
+            arrow.innerHTML = '&#8592;';
             wrapper.appendChild(arrow);
         }
     });
     container.appendChild(wrapper);
 
-    // Table
     const tbody = document.getElementById('blocks-table');
     tbody.innerHTML = '';
     blocks.slice().reverse().forEach(block => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${block.index}</td>
-            <td><code class="text-info" style="font-size:0.7rem;">${(block.hash||'').substring(0,24)}...</code></td>
+            <td><code class="text-info" style="font-size:0.7rem;">${(block.hash||'').substring(0,24)}…</code></td>
             <td><span class="badge bg-secondary">${(block.transactions||[]).length}</span></td>
             <td class="text-secondary" style="font-size:0.8rem;">${block.timestamp ? new Date(block.timestamp*1000).toLocaleString() : '-'}</td>
         `;
@@ -150,41 +333,74 @@ function renderBlockchain(chain) {
     });
 }
 
-// Load and refresh chain
 async function loadChain() {
     const res = await fetch('/api/chain');
     const data = await res.json();
     renderBlockchain(data);
 }
 
-// Peers
 async function loadPeers() {
     const res = await fetch('/api/network/peers');
     const data = await res.json();
-    document.getElementById('peer-count').textContent = (data.peers || []).length;
+    document.getElementById('peer-count').textContent = (data.peers||[]).length;
 }
 
-// Send transaction
-document.getElementById('tx-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const recipient = document.getElementById('tx-recipient').value.trim();
-    let txData = {};
-    const txRawData = document.getElementById('tx-data').value || '{}';
-    try { txData = JSON.parse(txRawData); } catch(err) {
-        document.getElementById('tx-result').className = 'ms-2 small text-danger';
-        document.getElementById('tx-result').textContent = 'Invalid JSON in data field';
-        return;
-    }
-    const res = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({sender: USER_DID, recipient: recipient, data: txData})
-    });
+// ── Blockchain status ─────────────────────────────────────────────────────
+async function loadVerificationStatus() {
+    try {
+        const res = await fetch(`/api/social/profiles/${encodeURIComponent(USER_DID)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const meta = data.profile.metadata || {};
+        const el = document.getElementById('last-verified-time');
+        if (meta.last_verified) {
+            el.textContent = new Date(meta.last_verified * 1000).toLocaleString();
+        } else {
+            el.textContent = 'Not yet verified';
+        }
+        const badge = document.getElementById('chain-status');
+        if (meta.blockchain_status === 'verified') {
+            badge.innerHTML = '<i class="bi bi-check-circle-fill"></i> VERIFIED';
+            badge.style.color = '#198754';
+        } else {
+            badge.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> PENDING';
+            badge.style.color = '#ffc107';
+        }
+    } catch(e) {}
+}
+
+async function loadActiveNodes() {
+    try {
+        const res = await fetch('/api/social/profiles');
+        const data = await res.json();
+        const list = document.getElementById('active-nodes-list');
+        const profiles = (data.profiles || []).filter(p => p.metadata && p.metadata.blockchain_status === 'verified');
+        if (profiles.length === 0) {
+            list.innerHTML = '<div class="p-2 text-secondary small">No verified nodes yet.</div>';
+            return;
+        }
+        list.innerHTML = profiles.slice(0, 5).map(p => `
+            <div class="list-group-item bg-dark border-secondary py-2 text-light small d-flex align-items-center gap-2">
+                <span class="sc-status-dot" style="width:6px;height:6px;"></span>
+                <span class="fw-bold">${p.display_name}</span>
+                <span class="ms-auto sc-chain-badge" style="font-size:0.65rem;">
+                    <i class="bi bi-check-circle-fill"></i> verified
+                </span>
+            </div>
+        `).join('');
+    } catch(e) {}
+}
+
+document.getElementById('reverify-btn').addEventListener('click', async () => {
+    const el = document.getElementById('verify-result');
+    el.textContent = 'Verifying…';
+    el.className = 'ms-2 small text-secondary';
+    const res = await fetch(`/api/social/profiles/${encodeURIComponent(USER_DID)}/verify`, {method:'POST'});
     const result = await res.json();
-    const el = document.getElementById('tx-result');
     if (res.ok) {
         el.className = 'ms-2 small text-success';
-        el.textContent = 'Transaction sent! ID: ' + (result.tx_id||'').substring(0,8) + '...';
+        el.textContent = '✓ Verified! TX: ' + (result.tx_id||'').substring(0,8) + '…';
+        loadVerificationStatus();
         loadChain();
     } else {
         el.className = 'ms-2 small text-danger';
@@ -192,7 +408,139 @@ document.getElementById('tx-form').addEventListener('submit', async (e) => {
     }
 });
 
-// Mine
+// ── Social links ──────────────────────────────────────────────────────────
+const PLATFORM_STATUS_IDS = {facebook:'fb-status', linkedin:'li-status', instagram:'ig-status', youtube:'yt-status'};
+let currentSocialLinks = {};
+
+async function loadSocialLinks() {
+    try {
+        const res = await fetch(`/api/social/profiles/${encodeURIComponent(USER_DID)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        currentSocialLinks = (data.profile.metadata || {}).social_links || {};
+        for (const [platform, elId] of Object.entries(PLATFORM_STATUS_IDS)) {
+            const el = document.getElementById(elId);
+            if (currentSocialLinks[platform]) {
+                const a = document.createElement('a');
+                a.href = currentSocialLinks[platform];
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.className = 'text-info';
+                a.style.cssText = 'font-size:0.7rem;word-break:break-all;';
+                a.textContent = currentSocialLinks[platform].substring(0, 28) + '…';
+                el.innerHTML = '';
+                el.appendChild(a);
+            }
+        }
+        loadExternalContacts(data.profile.metadata);
+    } catch(e) {}
+}
+
+function toggleLinkForm(platform) {
+    const form = document.getElementById(`form-${platform}`);
+    form.classList.toggle('d-none');
+    if (!form.classList.contains('d-none') && currentSocialLinks[platform]) {
+        document.getElementById(`url-${platform}`).value = currentSocialLinks[platform];
+    }
+}
+
+async function saveSocialLink(platform) {
+    const url = document.getElementById(`url-${platform}`).value.trim();
+    if (!url) return;
+    const res = await fetch(`/api/social/profiles/${encodeURIComponent(USER_DID)}/social-links`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({[platform]: url})
+    });
+    if (res.ok) {
+        document.getElementById(`form-${platform}`).classList.add('d-none');
+        loadSocialLinks();
+    }
+}
+
+// ── External contacts ─────────────────────────────────────────────────────
+function loadExternalContacts(meta) {
+    const contacts = (meta || {}).external_contacts || [];
+    const container = document.getElementById('external-contacts-list');
+    if (contacts.length === 0) {
+        container.innerHTML = '<div class="col-12 text-secondary small">No external contacts yet. Import from your social platforms.</div>';
+        return;
+    }
+    const PLATFORM_COLORS = {facebook:'#1877f2', linkedin:'#0a66c2', instagram:'#e1306c', youtube:'#ff0000'};
+    container.innerHTML = contacts.map((c, i) => `
+        <div class="col-md-4 col-sm-6">
+            <div class="sc-external-node p-2 d-flex align-items-center justify-content-between gap-2">
+                <div>
+                    <span style="color:${PLATFORM_COLORS[c.platform]||'#6c757d'};">
+                        <i class="bi bi-${c.platform === 'youtube' ? 'youtube' : c.platform}"></i>
+                    </span>
+                    <span class="text-light small ms-1">${c.name}</span>
+                    <div class="text-secondary" style="font-size:0.65rem;">${c.platform_id || c.platform}</div>
+                </div>
+                <button class="btn btn-sm sc-neon-btn flex-shrink-0" id="invite-btn-${i}"
+                        onclick="markInvited(${i})" style="font-size:0.7rem;padding:2px 8px;"
+                        ${c.invited ? 'disabled' : ''}>
+                    ${c.invited ? 'Invited ✓' : 'Invite'}
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function markInvited(idx) {
+    const btn = document.getElementById(`invite-btn-${idx}`);
+    if (btn) { btn.textContent = 'Invited ✓'; btn.disabled = true; }
+}
+
+function showAddExternalModal() {
+    const modal = new bootstrap.Modal(document.getElementById('addExtModal'));
+    modal.show();
+}
+
+async function addExternalContact() {
+    const name = document.getElementById('ext-name').value.trim();
+    const platform = document.getElementById('ext-platform').value;
+    const platformId = document.getElementById('ext-platform-id').value.trim();
+    if (!name) return;
+    const res = await fetch('/api/social/external-contacts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({owner_did: USER_DID, name, platform, platform_id: platformId})
+    });
+    if (res.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('addExtModal')).hide();
+        loadSocialLinks();
+    }
+}
+
+// ── Send Transaction ──────────────────────────────────────────────────────
+document.getElementById('tx-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const recipient = document.getElementById('tx-recipient').value.trim();
+    let txData = {};
+    const raw = document.getElementById('tx-data').value || '{}';
+    try { txData = JSON.parse(raw); } catch {
+        const el = document.getElementById('tx-result');
+        el.className = 'ms-2 small text-danger'; el.textContent = 'Invalid JSON'; return;
+    }
+    const res = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sender: USER_DID, recipient, data: txData})
+    });
+    const result = await res.json();
+    const el = document.getElementById('tx-result');
+    if (res.ok) {
+        el.className = 'ms-2 small text-success';
+        el.textContent = 'Sent! TX: ' + (result.tx_id||'').substring(0,8) + '…';
+        loadChain();
+    } else {
+        el.className = 'ms-2 small text-danger';
+        el.textContent = result.error || 'Error';
+    }
+});
+
+// ── Mine ──────────────────────────────────────────────────────────────────
 document.getElementById('mine-btn').addEventListener('click', async () => {
     const res = await fetch('/api/mine', {
         method: 'POST',
@@ -211,8 +559,18 @@ document.getElementById('mine-btn').addEventListener('click', async () => {
     }
 });
 
+async function verifyAllPending() {
+    await fetch(`/api/social/profiles/${encodeURIComponent(USER_DID)}/verify`, {method:'POST'});
+    loadChain();
+    loadVerificationStatus();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
 renderBlockchain(CHAIN_DATA);
 loadPeers();
+loadVerificationStatus();
+loadActiveNodes();
+loadSocialLinks();
 setInterval(loadChain, 10000);
 </script>
 {% endblock %}

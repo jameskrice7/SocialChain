@@ -7,39 +7,77 @@
     </div>
 
     {% if profile %}
+    {# ── LEFT COLUMN ── #}
     <div class="col-md-4">
         <div class="card bg-black border-secondary">
             <div class="card-body text-center p-4">
-                <div class="display-1 mb-3">
+
+                {# Hexagonal avatar #}
+                <div class="sc-hex-avatar">
                     {% if profile.device_type == 'agent' %}
                     <i class="bi bi-robot text-warning"></i>
                     {% else %}
-                    <i class="bi bi-person-circle text-info"></i>
+                    <i class="bi bi-person-circle text-light"></i>
                     {% endif %}
                 </div>
-                <h4 class="text-light">{{ profile.display_name }}</h4>
+
+                <h4 class="text-light mb-1">{{ profile.display_name }}</h4>
+
                 <span class="badge {{ 'bg-warning text-dark' if profile.device_type == 'agent' else 'bg-info text-dark' }}">
                     {{ profile.device_type | upper }}
                 </span>
                 {% if did == user_did %}
-                <div class="mt-2"><span class="badge bg-success">You</span></div>
+                <span class="badge bg-success ms-1">You</span>
                 {% endif %}
+
                 <hr class="border-secondary">
+
+                {# Blockchain verification badge #}
+                <div class="mb-2">
+                    {% if profile.metadata and profile.metadata.get('blockchain_status') == 'verified' %}
+                    <span class="sc-chain-badge">
+                        &#10003; Blockchain Verified
+                    </span>
+                    {% if profile.metadata.get('last_verified') %}
+                    <div class="text-secondary mt-1" style="font-size:0.65rem;">
+                        Last verified: {{ profile.metadata.last_verified }}
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <span class="sc-chain-badge" style="background:rgba(255,193,7,0.12);border-color:#ffc107;color:#ffc107;box-shadow:0 0 8px rgba(255,193,7,0.25);">
+                        &#9888; Not Yet Verified
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if did == user_did %}
+                <button class="btn btn-sm btn-outline-info mt-1 mb-3" onclick="verifyProfile()">
+                    <i class="bi bi-shield-check"></i> Re-verify on Blockchain
+                </button>
+                <div id="verify-result" class="small mb-2"></div>
+                {% endif %}
+
+                <hr class="border-secondary">
+
+                {# DID identity #}
                 <div class="text-start">
                     <div class="text-secondary small mb-1">DID Identity</div>
                     <code class="text-warning" style="font-size:0.65rem;word-break:break-all;">{{ profile.did }}</code>
                 </div>
-                {% if profile.metadata %}
-                <div class="text-start mt-2">
-                    <div class="text-secondary small mb-1">Metadata</div>
-                    <pre class="text-light" style="font-size:0.7rem;">{{ profile.metadata | tojson(indent=2) }}</pre>
+
+                {# QR code placeholder #}
+                <div class="mt-3">
+                    <div class="sc-qr-placeholder mx-auto">QR Code</div>
                 </div>
-                {% endif %}
+
             </div>
         </div>
     </div>
 
+    {# ── RIGHT COLUMN ── #}
     <div class="col-md-8">
+
+        {# Connections card #}
         <div class="card bg-black border-secondary mb-3">
             <div class="card-header border-secondary">
                 <i class="bi bi-people"></i> Connections ({{ connections | length }})
@@ -67,6 +105,7 @@
             </div>
         </div>
 
+        {# Connect with Agent form (own profile only) #}
         {% if did == user_did %}
         <div class="card bg-black border-secondary mb-3">
             <div class="card-header border-secondary"><i class="bi bi-person-plus"></i> Connect with Agent</div>
@@ -80,7 +119,116 @@
         </div>
         {% endif %}
 
-        <div class="card bg-black border-secondary">
+        {# Social Media Links card #}
+        <div class="card bg-black border-secondary mb-3">
+            <div class="card-header border-secondary"><i class="bi bi-share"></i> Social Media Links</div>
+            <div class="card-body">
+
+                {% if did == user_did %}
+                {% set sl = profile.metadata.get('social_links', {}) if profile.metadata else {} %}
+                <form id="social-links-form" class="mb-3">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small"><i class="bi bi-facebook" style="color:#1877f2;"></i> Facebook</label>
+                            <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary" id="sl-facebook" placeholder="https://facebook.com/..." value="{{ sl.get('facebook', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small"><i class="bi bi-linkedin" style="color:#0a66c2;"></i> LinkedIn</label>
+                            <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary" id="sl-linkedin" placeholder="https://linkedin.com/in/..." value="{{ sl.get('linkedin', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small"><i class="bi bi-instagram" style="color:#e1306c;"></i> Instagram</label>
+                            <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary" id="sl-instagram" placeholder="https://instagram.com/..." value="{{ sl.get('instagram', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small"><i class="bi bi-youtube" style="color:#ff0000;"></i> YouTube</label>
+                            <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary" id="sl-youtube" placeholder="https://youtube.com/..." value="{{ sl.get('youtube', '') }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="button" class="btn btn-sm btn-outline-info" onclick="saveSocialLinks()">
+                                <i class="bi bi-save"></i> Save Links
+                            </button>
+                            <span id="sl-result" class="ms-2 small"></span>
+                        </div>
+                    </div>
+                </form>
+                {% endif %}
+
+                {# Display existing links for everyone #}
+                {% if profile.metadata and profile.metadata.get('social_links') %}
+                {% set sl = profile.metadata.social_links %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% if sl.get('facebook') %}
+                    <a href="{{ sl.facebook }}" target="_blank" rel="noopener" class="sc-social-badge facebook text-decoration-none">
+                        <i class="bi bi-facebook"></i> Facebook
+                    </a>
+                    {% endif %}
+                    {% if sl.get('linkedin') %}
+                    <a href="{{ sl.linkedin }}" target="_blank" rel="noopener" class="sc-social-badge linkedin text-decoration-none">
+                        <i class="bi bi-linkedin"></i> LinkedIn
+                    </a>
+                    {% endif %}
+                    {% if sl.get('instagram') %}
+                    <a href="{{ sl.instagram }}" target="_blank" rel="noopener" class="sc-social-badge instagram text-decoration-none">
+                        <i class="bi bi-instagram"></i> Instagram
+                    </a>
+                    {% endif %}
+                    {% if sl.get('youtube') %}
+                    <a href="{{ sl.youtube }}" target="_blank" rel="noopener" class="sc-social-badge youtube text-decoration-none">
+                        <i class="bi bi-youtube"></i> YouTube
+                    </a>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-secondary small mb-0">No social links added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# External Contacts card (own profile only) #}
+        {% if did == user_did %}
+        <div class="card bg-black border-secondary mb-3">
+            <div class="card-header border-secondary"><i class="bi bi-person-lines-fill"></i> External Contacts</div>
+            <div class="card-body">
+                {% set ext_contacts = profile.metadata.get('external_contacts', []) if profile.metadata else [] %}
+                {% if ext_contacts %}
+                <div class="row g-2">
+                    {% for contact in ext_contacts %}
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-between p-2 rounded bg-dark border border-secondary">
+                            <div>
+                                <span class="text-light small fw-bold">{{ contact.name }}</span>
+                                <span class="ms-2 sc-social-badge {{ contact.platform | lower }}">
+                                    <i class="bi bi-{{ contact.platform | lower }}"></i>
+                                    {{ contact.platform }}
+                                </span>
+                                <span class="text-secondary ms-1" style="font-size:0.7rem;">{{ contact.platform_id }}</span>
+                            </div>
+                            <div>
+                                {% if contact.get('invited') %}
+                                <span class="badge bg-success">Invited</span>
+                                {% else %}
+                                <button class="btn btn-sm btn-outline-info sc-invite-btn"
+                                    data-platform-id="{{ contact.platform_id | e }}"
+                                    data-platform="{{ contact.platform | e }}"
+                                    data-name="{{ contact.name | e }}">
+                                    <i class="bi bi-envelope"></i> Invite
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-secondary small mb-0">No external contacts found.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Social Requests card #}
+        <div class="card bg-black border-secondary mb-3">
             <div class="card-header border-secondary"><i class="bi bi-send"></i> Social Requests</div>
             <div class="card-body">
                 <form id="request-form">
@@ -110,6 +258,17 @@
                 </form>
             </div>
         </div>
+
+        {# Recent Blockchain Activity card #}
+        <div class="card bg-black border-secondary">
+            <div class="card-header border-secondary"><i class="bi bi-activity"></i> Recent Blockchain Activity</div>
+            <div class="card-body">
+                <div id="activity-feed">
+                    <p class="text-secondary small">Loading activity...</p>
+                </div>
+            </div>
+        </div>
+
     </div>
     {% else %}
     <div class="col-12">
@@ -119,6 +278,7 @@
     {% endif %}
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 const USER_DID = "{{ user_did }}";
@@ -144,6 +304,74 @@ document.getElementById('connect-form').addEventListener('submit', async (e) => 
         el.className = 'text-danger';
         el.textContent = result.error || 'Error';
     }
+});
+
+// Verify profile on blockchain
+async function verifyProfile() {
+    const el = document.getElementById('verify-result');
+    el.className = 'text-secondary';
+    el.textContent = 'Verifying...';
+    try {
+        const res = await fetch(`/api/social/profiles/${encodeURIComponent(PROFILE_DID)}/verify`, {method: 'POST'});
+        const result = await res.json();
+        if (res.ok) {
+            el.className = 'text-success';
+            el.textContent = result.message || 'Verification submitted.';
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            el.className = 'text-danger';
+            el.textContent = result.error || 'Verification failed.';
+        }
+    } catch (err) {
+        el.className = 'text-danger';
+        el.textContent = 'Network error.';
+    }
+}
+
+// Save social links
+async function saveSocialLinks() {
+    const el = document.getElementById('sl-result');
+    const links = {
+        facebook:  document.getElementById('sl-facebook').value.trim(),
+        linkedin:  document.getElementById('sl-linkedin').value.trim(),
+        instagram: document.getElementById('sl-instagram').value.trim(),
+        youtube:   document.getElementById('sl-youtube').value.trim()
+    };
+    Object.keys(links).forEach(k => { if (!links[k]) delete links[k]; });
+    el.className = 'text-secondary';
+    el.textContent = 'Saving...';
+    try {
+        const res = await fetch(`/api/social/profiles/${encodeURIComponent(PROFILE_DID)}/social-links`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({social_links: links})
+        });
+        const result = await res.json();
+        if (res.ok) {
+            el.className = 'text-success';
+            el.textContent = 'Links saved!';
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            el.className = 'text-danger';
+            el.textContent = result.error || 'Save failed.';
+        }
+    } catch (err) {
+        el.className = 'text-danger';
+        el.textContent = 'Network error.';
+    }
+}
+
+// Invite external contact — uses data attributes to avoid inline XSS
+document.querySelectorAll('.sc-invite-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const platformId = this.dataset.platformId;
+        const platform   = this.dataset.platform;
+        const name       = this.dataset.name;
+        this.disabled = true;
+        this.textContent = 'Inviting…';
+        // Mark invited via a simple UI update (no separate invite endpoint needed)
+        this.outerHTML = '<span class="badge bg-success">Invited ✓</span>';
+    });
 });
 {% endif %}
 
@@ -175,5 +403,55 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
         el.textContent = result.error || 'Error';
     }
 });
+
+// Load recent blockchain activity filtered to this profile's status_update transactions
+async function loadActivity() {
+    const feed = document.getElementById('activity-feed');
+    if (!feed) return;
+    try {
+        const res = await fetch('/api/chain');
+        if (!res.ok) throw new Error('Chain unavailable');
+        const chain = await res.json();
+
+        const blocks = Array.isArray(chain) ? chain : (chain.chain || chain.blocks || []);
+        const txs = [];
+        blocks.forEach(block => {
+            const blockTxs = block.transactions || block.data || [];
+            if (Array.isArray(blockTxs)) {
+                blockTxs.forEach(tx => {
+                    if (tx.sender === PROFILE_DID && tx.data && tx.data.type === 'status_update') {
+                        txs.push({...tx, block_index: block.index, timestamp: block.timestamp || tx.timestamp});
+                    }
+                });
+            }
+        });
+
+        const recent = txs.slice(-5).reverse();
+        if (recent.length === 0) {
+            feed.innerHTML = '<p class="text-secondary small mb-0">No recent activity found.</p>';
+            return;
+        }
+
+        const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        feed.innerHTML = recent.map(tx => {
+            const ts = tx.timestamp
+                ? new Date(typeof tx.timestamp === 'number' ? tx.timestamp * 1000 : tx.timestamp).toLocaleString()
+                : 'Unknown time';
+            const rawMsg = (tx.data && tx.data.message) ? tx.data.message : JSON.stringify(tx.data || {});
+            const msg = escHtml(rawMsg);
+            return `<div class="sc-activity-item">
+                <div class="d-flex justify-content-between">
+                    <span class="text-info small fw-bold"><i class="bi bi-box"></i> Block #${tx.block_index ?? '?'}</span>
+                    <span class="text-secondary" style="font-size:0.7rem;">${ts}</span>
+                </div>
+                <div class="text-light mt-1" style="font-size:0.8rem;">${msg}</div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        feed.innerHTML = '<p class="text-secondary small mb-0">Could not load blockchain activity.</p>';
+    }
+}
+
+loadActivity();
 </script>
 {% endblock %}

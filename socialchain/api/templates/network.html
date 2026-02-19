@@ -1,190 +1,672 @@
 {% extends "base.html" %}
 {% block title %}Network - SocialChain{% endblock %}
+
 {% block content %}
 <div class="row g-3">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <h4 class="text-info mb-0"><i class="bi bi-diagram-3"></i> Network Visualization</h4>
-        <button class="btn btn-sm btn-outline-info" id="refresh-btn"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+
+    <!-- ── Header ── -->
+    <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <h4 class="sc-glow-text fw-bold mb-0">
+                <i class="bi bi-diagram-3 text-info"></i> Network Visualization
+            </h4>
+            <p class="text-secondary mb-0 small">
+                Node: <code class="text-warning">{{ user_did }}</code>
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Toggle buttons -->
+            <div class="btn-group" role="group" aria-label="Network view toggle">
+                <button type="button" id="btn-global" class="btn btn-sm sc-toggle-btn active"
+                        onclick="setView('global')">
+                    <i class="bi bi-globe2"></i> Global Network
+                </button>
+                <button type="button" id="btn-my" class="btn btn-sm sc-toggle-btn"
+                        onclick="setView('my')">
+                    <i class="bi bi-person-lines-fill"></i> My Network
+                </button>
+            </div>
+            <button class="btn btn-sm btn-outline-info sc-neon-btn" onclick="loadNetwork()" title="Refresh">
+                <i class="bi bi-arrow-clockwise" id="refresh-icon"></i>
+            </button>
+        </div>
     </div>
+
+    <!-- ── Stats bar ── -->
     <div class="col-12">
-        <div class="card bg-black border-secondary">
-            <div class="card-body p-0">
-                <div id="network-legend" class="p-2 border-bottom border-secondary d-flex gap-3">
-                    <span class="text-secondary small"><i class="bi bi-circle-fill text-info"></i> Human</span>
-                    <span class="text-secondary small"><i class="bi bi-circle-fill text-warning"></i> AI Agent</span>
-                    <span class="text-secondary small"><i class="bi bi-circle-fill text-success"></i> You</span>
+        <div class="card bg-black border-secondary py-2 px-3">
+            <div class="row text-center g-0">
+                <div class="col-4 border-end border-secondary">
+                    <div class="text-info fw-bold fs-5" id="stat-sc-nodes">–</div>
+                    <div class="text-secondary" style="font-size:0.72rem;">SC NODES</div>
                 </div>
-                <svg id="network-svg" width="100%" style="height:500px;"></svg>
+                <div class="col-4 border-end border-secondary">
+                    <div class="text-secondary fw-bold fs-5" id="stat-ext-contacts">–</div>
+                    <div class="text-secondary" style="font-size:0.72rem;">EXTERNAL CONTACTS</div>
+                </div>
+                <div class="col-4">
+                    <div class="text-success fw-bold fs-5" id="stat-connections">–</div>
+                    <div class="text-secondary" style="font-size:0.72rem;">CONNECTIONS</div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card bg-black border-secondary">
-            <div class="card-header border-secondary"><i class="bi bi-people"></i> All Agents</div>
+
+    <!-- ── Network Graph ── -->
+    <div class="col-12">
+        <div class="card bg-black border-info">
+            <div class="card-header border-secondary d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-share-fill text-info me-1"></i> Live Graph</span>
+                <!-- Legend -->
+                <div class="d-flex align-items-center gap-3 flex-wrap" style="font-size:0.75rem;">
+                    <span class="d-flex align-items-center gap-1">
+                        <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#0dcaf0"/></svg>
+                        <span class="text-secondary">Human SC Node</span>
+                    </span>
+                    <span class="d-flex align-items-center gap-1">
+                        <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#ffc107"/></svg>
+                        <span class="text-secondary">AI Agent</span>
+                    </span>
+                    <span class="d-flex align-items-center gap-1">
+                        <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#198754"/></svg>
+                        <span class="text-secondary">You</span>
+                    </span>
+                    <span class="d-flex align-items-center gap-1">
+                        <svg width="14" height="14">
+                            <circle cx="7" cy="7" r="6" fill="none" stroke="#6c757d"
+                                    stroke-width="1.5" stroke-dasharray="3,2"/>
+                        </svg>
+                        <span class="text-secondary">External</span>
+                    </span>
+                </div>
+            </div>
+            <div class="card-body p-0" style="background:#050a0e;border-radius:0 0 0.375rem 0.375rem;">
+                <svg id="network-svg" width="100%" style="height:500px;display:block;"></svg>
+                <div id="graph-loading" class="text-center text-secondary py-4 small d-none">
+                    <span class="spinner-border spinner-border-sm me-2"></span>Loading graph…
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Bottom panels ── -->
+    <div class="col-md-3">
+        <!-- All Agents -->
+        <div class="card bg-black border-warning h-100">
+            <div class="card-header border-secondary">
+                <i class="bi bi-robot text-warning me-1"></i>
+                <span class="text-warning fw-semibold">All Agents</span>
+            </div>
             <div class="card-body p-0">
-                <div class="list-group list-group-flush" id="agents-list" style="max-height:300px;overflow-y:auto;"></div>
+                <div id="agents-list" class="list-group list-group-flush"
+                     style="max-height:300px;overflow-y:auto;">
+                    <div class="p-3 text-secondary small">Loading…</div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-8">
-        <div class="card bg-black border-secondary">
-            <div class="card-header border-secondary"><i class="bi bi-info-circle"></i> Selected Node</div>
-            <div class="card-body" id="node-detail">
-                <p class="text-secondary">Click a node in the graph to see details.</p>
+
+    <div class="col-md-5">
+        <!-- Selected Node detail -->
+        <div class="card bg-black border-info h-100">
+            <div class="card-header border-secondary">
+                <i class="bi bi-info-circle text-info me-1"></i>
+                <span class="text-info fw-semibold">Selected Node</span>
+            </div>
+            <div id="node-detail" class="card-body">
+                <p class="text-secondary small mb-0">
+                    <i class="bi bi-cursor text-secondary"></i>
+                    Click a node in the graph to see details.
+                </p>
             </div>
         </div>
     </div>
-</div>
+
+    <div class="col-md-4">
+        <!-- Social Network sidebar -->
+        <div class="card bg-black border-secondary h-100">
+            <div class="card-header border-secondary">
+                <i class="bi bi-share text-secondary me-1"></i>
+                <span class="fw-semibold">Social Network</span>
+            </div>
+            <div id="social-sidebar" class="card-body p-2" style="overflow-y:auto;max-height:360px;">
+                <p class="text-secondary small mb-0">Loading social contacts…</p>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /row -->
+
+<style>
+/* Toggle buttons */
+.sc-toggle-btn {
+    background: transparent;
+    border: 1px solid #0dcaf0;
+    color: #0dcaf0;
+    transition: background .2s, color .2s;
+}
+.sc-toggle-btn.active,
+.sc-toggle-btn:hover {
+    background: #0dcaf020;
+    color: #0dcaf0;
+    border-color: #0dcaf0;
+    box-shadow: 0 0 8px #0dcaf040;
+}
+.sc-toggle-btn:not(.active) {
+    border-color: #495057;
+    color: #6c757d;
+}
+
+/* External node items */
+.sc-external-node {
+    border-left: 2px dashed #6c757d !important;
+    background: #0d1117;
+}
+
+/* Platform badges */
+.sc-social-badge {
+    font-size: 0.68rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: .03em;
+}
+.sc-social-badge.facebook  { background:#1877f220; color:#1877f2; border:1px solid #1877f260; }
+.sc-social-badge.linkedin  { background:#0a66c220; color:#0a66c2; border:1px solid #0a66c260; }
+.sc-social-badge.instagram { background:#e1306c20; color:#e1306c; border:1px solid #e1306c60; }
+.sc-social-badge.youtube   { background:#ff000020; color:#ff0000; border:1px solid #ff000060; }
+
+/* Node pulse animation */
+@keyframes sc-pulse {
+    0%   { r: 16; opacity: .55; }
+    50%  { r: 24; opacity: .15; }
+    100% { r: 16; opacity: .55; }
+}
+.sc-pulse-ring { animation: sc-pulse 2s ease-in-out infinite; }
+
+/* Graph tooltip */
+#sc-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #101820ee;
+    border: 1px solid #0dcaf080;
+    color: #e0e0e0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: .78rem;
+    z-index: 9999;
+    display: none;
+}
+</style>
+
+<div id="sc-tooltip"></div>
 {% endblock %}
+
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
 const USER_DID = "{{ user_did }}";
-let networkData = {profiles: [], map: {}};
+const USERNAME = "{{ username }}";
 
+let currentView = 'global';
+let allProfiles  = [];
+let networkMap   = { nodes: [], links: [] };
+let simulation   = null;
+
+/* ─── View toggle ─────────────────────────────────────────────── */
+function setView(view) {
+    currentView = view;
+    document.getElementById('btn-global').classList.toggle('active', view === 'global');
+    document.getElementById('btn-my').classList.toggle('active',     view === 'my');
+    renderNetwork();
+}
+
+/* ─── Data loading ─────────────────────────────────────────────── */
 async function loadNetwork() {
-    const [profilesRes, mapRes] = await Promise.all([
-        fetch('/api/social/profiles'),
-        fetch('/api/social/map')
-    ]);
-    const profilesData = await profilesRes.json();
-    const mapData = await mapRes.json();
-    networkData.profiles = profilesData.profiles || [];
-    networkData.map = mapData.map || {};
+    const icon = document.getElementById('refresh-icon');
+    icon.classList.add('spin');  // optional CSS spin class
+
+    try {
+        const [profRes, mapRes] = await Promise.all([
+            fetch('/api/social/profiles'),
+            fetch('/api/social/map')
+        ]);
+
+        if (profRes.ok)  { const d = await profRes.json(); allProfiles = d.profiles || []; }
+        if (mapRes.ok)   { const d = await mapRes.json();  networkMap  = d.map       || { nodes: [], links: [] }; }
+    } catch (e) {
+        console.warn('Network load error:', e);
+    } finally {
+        icon.classList.remove('spin');
+    }
+
     renderNetwork();
     renderAgentsList();
+    renderSocialSidebar();
+    updateStats();
 }
 
-function renderAgentsList() {
-    const list = document.getElementById('agents-list');
-    list.innerHTML = '';
-    networkData.profiles.forEach(p => {
-        const a = document.createElement('a');
-        a.href = `/profile/${p.did}`;
-        a.className = 'list-group-item list-group-item-action bg-dark border-secondary text-light py-2';
-        const isYou = p.did === USER_DID;
-        const icon = p.device_type === 'agent' ? 'bi-robot text-warning' : 'bi-person-circle text-info';
-        a.innerHTML = `
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi ${icon}"></i>
-                <div>
-                    <div class="small fw-bold">${p.display_name}${isYou ? ' <span class="badge bg-success">You</span>' : ''}</div>
-                    <div class="text-secondary" style="font-size:0.65rem;">${p.did.substring(0,40)}...</div>
-                </div>
-            </div>
-        `;
-        list.appendChild(a);
+/* ─── Stats bar ────────────────────────────────────────────────── */
+function updateStats() {
+    const scNodes = allProfiles.length;
+
+    let extCount = 0;
+    allProfiles.forEach(p => {
+        const ext = p.metadata && p.metadata.external_contacts;
+        if (Array.isArray(ext)) extCount += ext.length;
     });
-    if (networkData.profiles.length === 0) {
-        list.innerHTML = '<div class="p-3 text-secondary small">No agents registered yet.</div>';
-    }
+
+    const connCount = (networkMap.links || []).length;
+
+    document.getElementById('stat-sc-nodes').textContent     = scNodes;
+    document.getElementById('stat-ext-contacts').textContent = extCount;
+    document.getElementById('stat-connections').textContent  = connCount;
 }
 
+/* ─── D3 Network render ─────────────────────────────────────────── */
 function renderNetwork() {
     const svg = d3.select('#network-svg');
     svg.selectAll('*').remove();
-    const width = document.getElementById('network-svg').clientWidth || 800;
-    const height = 500;
 
-    const profiles = networkData.profiles;
-    const map = networkData.map;
+    const el     = document.getElementById('network-svg');
+    const width  = el.clientWidth  || 900;
+    const height = el.clientHeight || 500;
 
-    if (profiles.length === 0) {
-        svg.append('text').attr('x', width/2).attr('y', height/2)
-            .attr('text-anchor', 'middle').attr('fill', '#6c757d')
-            .text('No agents registered. Register to see the network.');
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+
+    /* Build node list */
+    let nodes = (networkMap.nodes || []).map(n => ({
+        ...n,
+        type: n.did === USER_DID ? 'self'
+            : (n.is_agent ? 'agent' : 'human')
+    }));
+
+    let links = (networkMap.links || []).map(l => ({ ...l }));
+
+    /* Add external contact nodes for global view */
+    if (currentView === 'global') {
+        allProfiles.forEach(profile => {
+            const ext = profile.metadata && profile.metadata.external_contacts;
+            if (!Array.isArray(ext)) return;
+            ext.forEach(contact => {
+                const extId = `ext:${profile.did}:${contact.platform}:${contact.platform_id || contact.name}`;
+                if (!nodes.find(n => n.id === extId)) {
+                    nodes.push({
+                        id:       extId,
+                        did:      extId,
+                        username: contact.username || contact.name || 'Contact',
+                        type:     'external',
+                        platform: contact.platform,
+                        contact:  contact
+                    });
+                }
+                links.push({ source: profile.did, target: extId, external: true });
+            });
+        });
+    } else {
+        /* My-network: keep only nodes reachable from USER_DID */
+        const connected = new Set([USER_DID]);
+        let changed = true;
+        while (changed) {
+            changed = false;
+            links.forEach(l => {
+                const s = typeof l.source === 'object' ? l.source.id : l.source;
+                const t = typeof l.target === 'object' ? l.target.id : l.target;
+                if (connected.has(s) && !connected.has(t)) { connected.add(t); changed = true; }
+                if (connected.has(t) && !connected.has(s)) { connected.add(s); changed = true; }
+            });
+        }
+        nodes = nodes.filter(n => connected.has(n.did || n.id));
+        links = links.filter(l => {
+            const s = typeof l.source === 'object' ? l.source.id : l.source;
+            const t = typeof l.target === 'object' ? l.target.id : l.target;
+            return connected.has(s) && connected.has(t);
+        });
+    }
+
+    if (!nodes.length) {
+        svg.append('text')
+            .attr('x', width / 2).attr('y', height / 2)
+            .attr('text-anchor', 'middle')
+            .attr('fill', '#6c757d').attr('font-size', 14)
+            .text('No nodes to display');
         return;
     }
 
-    // Build nodes and links
-    const nodes = profiles.map(p => ({
-        id: p.did,
-        name: p.display_name,
-        type: p.device_type,
-        isMe: p.did === USER_DID
+    /* Normalise link source/target to id strings */
+    const nodeById = new Map(nodes.map(n => [n.did || n.id, n]));
+    links = links.filter(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        return nodeById.has(s) && nodeById.has(t);
+    }).map(l => ({
+        ...l,
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target
     }));
-    const nodeIds = new Set(nodes.map(n => n.id));
-    const linksSet = new Set();
-    const links = [];
-    Object.entries(map).forEach(([did, conns]) => {
-        conns.forEach(connDid => {
-            if (nodeIds.has(did) && nodeIds.has(connDid)) {
-                const key = [did, connDid].sort().join('|');
-                if (!linksSet.has(key)) {
-                    linksSet.add(key);
-                    links.push({source: did, target: connDid});
-                }
-            }
+
+    /* Defs for arrow */
+    const defs = svg.append('defs');
+    defs.append('marker')
+        .attr('id', 'arrow')
+        .attr('viewBox', '0 -4 8 8')
+        .attr('refX', 22).attr('refY', 0)
+        .attr('markerWidth', 6).attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#0dcaf060');
+
+    /* Simulation */
+    if (simulation) simulation.stop();
+    simulation = d3.forceSimulation(nodes)
+        .force('link',   d3.forceLink(links)
+            .id(d => d.did || d.id)
+            .distance(80))
+        .force('charge', d3.forceManyBody().strength(-220))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collide', d3.forceCollide(22));
+
+    /* Zoom */
+    const g = svg.append('g');
+    svg.call(d3.zoom()
+        .scaleExtent([0.2, 4])
+        .on('zoom', e => g.attr('transform', e.transform)));
+
+    /* Links */
+    const link = g.append('g').selectAll('line').data(links).join('line')
+        .attr('stroke',           d => d.external ? '#6c757d' : '#0dcaf0')
+        .attr('stroke-width',     d => d.external ? 1 : 1.5)
+        .attr('stroke-dasharray', d => d.external ? '5,3' : null)
+        .attr('stroke-opacity',   0.7)
+        .attr('marker-end',       d => d.external ? null : 'url(#arrow)');
+
+    /* Node groups */
+    const tooltip = document.getElementById('sc-tooltip');
+
+    const node = g.append('g').selectAll('g').data(nodes).join('g')
+        .style('cursor', 'pointer')
+        .call(d3.drag()
+            .on('start', (e, d) => {
+                if (!e.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x; d.fy = d.y;
+            })
+            .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end',  (e, d) => {
+                if (!e.active) simulation.alphaTarget(0);
+                d.fx = null; d.fy = null;
+            }))
+        .on('click', (e, d) => showNodeDetail(d))
+        .on('mousemove', (e, d) => {
+            tooltip.style.display = 'block';
+            tooltip.style.left    = (e.clientX + 14) + 'px';
+            tooltip.style.top     = (e.clientY - 8)  + 'px';
+            tooltip.textContent   = d.username || d.did || d.id;
+        })
+        .on('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    /* Pulse ring for self/human nodes */
+    node.filter(d => d.type === 'self' || d.type === 'human')
+        .append('circle')
+        .attr('r',    d => d.type === 'self' ? 22 : 18)
+        .attr('fill', 'none')
+        .attr('stroke',       d => d.type === 'self' ? '#198754' : '#0dcaf0')
+        .attr('stroke-width', 1.5)
+        .attr('opacity',      0.4)
+        .classed('sc-pulse-ring', true);
+
+    /* Main circles */
+    node.append('circle')
+        .attr('r', d => {
+            if (d.type === 'self')     return 18;
+            if (d.type === 'external') return 10;
+            return 14;
+        })
+        .attr('fill', d => {
+            if (d.type === 'self')     return '#198754';
+            if (d.type === 'agent')    return '#ffc107';
+            if (d.type === 'external') return 'none';
+            return '#0dcaf0';
+        })
+        .attr('stroke', d => {
+            if (d.type === 'external') return '#6c757d';
+            if (d.type === 'self')     return '#198754';
+            if (d.type === 'agent')    return '#ffc107';
+            return '#0dcaf0';
+        })
+        .attr('stroke-width',     d => d.type === 'external' ? 1.5 : 2)
+        .attr('stroke-dasharray', d => d.type === 'external' ? '4,2' : null)
+        .attr('fill-opacity',     d => d.type === 'external' ? 0 : 0.85);
+
+    /* Labels */
+    node.append('text')
+        .attr('dy', d => (d.type === 'self' ? 18 : 14) + 12)
+        .attr('text-anchor', 'middle')
+        .attr('fill',      d => d.type === 'self' ? '#198754' : (d.type === 'agent' ? '#ffc107' : '#adb5bd'))
+        .attr('font-size', d => d.type === 'self' ? 11 : 10)
+        .text(d => {
+            const name = d.username || d.id || '';
+            return name.length > 14 ? name.slice(0, 13) + '…' : name;
+        });
+
+    /* Icon for agents */
+    node.filter(d => d.type === 'agent')
+        .append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.35em')
+        .attr('fill', '#050a0e')
+        .attr('font-size', 12)
+        .text('🤖');
+
+    /* Tick */
+    simulation.on('tick', () => {
+        link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+        node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+}
+
+/* ─── Node data store (avoids JSON.stringify in onclick) ─────────── */
+const _nodeStore = new Map();
+let   _nodeStoreSeq = 0;
+function storeNode(obj) {
+    const key = 'n' + (++_nodeStoreSeq);
+    _nodeStore.set(key, obj);
+    return key;
+}
+
+/* ─── Agents list ───────────────────────────────────────────────── */
+function renderAgentsList() {
+    const el = document.getElementById('agents-list');
+    const agents = allProfiles.filter(p => p.is_agent);
+
+    if (!agents.length) {
+        el.innerHTML = '<div class="p-3 text-secondary small">No agents found.</div>';
+        return;
+    }
+
+    el.innerHTML = agents.map(a => {
+        const key = storeNode({ did: a.did, username: a.username, type: 'agent', metadata: a.metadata || {} });
+        return `
+        <div class="list-group-item list-group-item-action bg-black border-secondary px-3 py-2"
+             data-node-key="${escHtml(key)}" style="cursor:pointer;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-robot text-warning"></i>
+                <span class="text-warning small fw-semibold">${escHtml(a.username || a.did)}</span>
+            </div>
+            <div class="text-secondary" style="font-size:0.68rem;word-break:break-all;">
+                ${escHtml((a.did || '').slice(0, 36))}…
+            </div>
+        </div>`;
+    }).join('');
+
+    el.querySelectorAll('[data-node-key]').forEach(item => {
+        item.addEventListener('click', () => {
+            const node = _nodeStore.get(item.dataset.nodeKey);
+            if (node) showNodeDetail(node);
+        });
+    });
+}
+
+/* ─── Selected node detail ──────────────────────────────────────── */
+function showNodeDetail(node) {
+    const el = document.getElementById('node-detail');
+
+    const isSelf     = node.did === USER_DID;
+    const isExternal = node.type === 'external';
+    const isAgent    = node.type === 'agent';
+
+    const badge = isSelf     ? '<span class="badge bg-success">You</span>'
+                : isAgent    ? '<span class="badge bg-warning text-dark">AI Agent</span>'
+                : isExternal ? '<span class="badge bg-secondary">External</span>'
+                             : '<span class="badge bg-info text-dark">SC Node</span>';
+
+    const platform = node.platform
+        ? `<div class="mt-1"><span class="sc-social-badge ${escHtml(node.platform.toLowerCase())}">
+               ${escHtml(node.platform)}
+           </span></div>` : '';
+
+    const meta = node.metadata || node.contact || {};
+    const metaRows = Object.entries(meta)
+        .filter(([k]) => !['external_contacts'].includes(k))
+        .map(([k, v]) => `<tr>
+            <td class="text-secondary small pe-2">${escHtml(k)}</td>
+            <td class="text-light small">${escHtml(String(v))}</td>
+        </tr>`).join('');
+
+    const inviteBtn = isExternal ? (() => {
+        const key = storeNode({ did: node.did || node.id, username: node.username });
+        return `<button class="btn btn-sm btn-outline-info sc-neon-btn mt-3"
+                        data-invite-key="${escHtml(key)}"
+                        id="invite-btn-${escHtml(key)}">
+                    <i class="bi bi-envelope-plus"></i> Invite to SocialChain
+                </button>`;
+    })() : '';
+
+    el.innerHTML = `
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-${isAgent ? 'robot text-warning' : isExternal ? 'person-dash text-secondary' : 'person-circle text-info'}" style="font-size:1.4rem;"></i>
+            <div>
+                <div class="fw-bold">${escHtml(node.username || node.id || 'Unknown')}</div>
+                ${badge} ${platform}
+            </div>
+        </div>
+        <div class="text-secondary small mb-2" style="word-break:break-all;">
+            <i class="bi bi-fingerprint text-secondary me-1"></i>${escHtml(node.did || node.id || '')}
+        </div>
+        ${metaRows ? `<table class="table table-sm table-dark table-borderless mb-0">${metaRows}</table>` : ''}
+        ${inviteBtn}`;
+
+    /* Attach invite listener safely (no onclick attribute) */
+    el.querySelectorAll('[data-invite-key]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const stored = _nodeStore.get(btn.dataset.inviteKey);
+            if (stored) inviteContact(stored);
+        });
+    });
+}
+
+/* ─── Social sidebar ────────────────────────────────────────────── */
+function renderSocialSidebar() {
+    const el = document.getElementById('social-sidebar');
+
+    const PLATFORMS = [
+        { key: 'facebook',  icon: 'bi-facebook',  label: 'Facebook'  },
+        { key: 'linkedin',  icon: 'bi-linkedin',  label: 'LinkedIn'  },
+        { key: 'instagram', icon: 'bi-instagram', label: 'Instagram' },
+        { key: 'youtube',   icon: 'bi-youtube',   label: 'YouTube'   }
+    ];
+
+    /* Collect all external contacts across profiles */
+    const byPlatform = {};
+    allProfiles.forEach(profile => {
+        const ext = profile.metadata && profile.metadata.external_contacts;
+        if (!Array.isArray(ext)) return;
+        ext.forEach(contact => {
+            const p = (contact.platform || 'other').toLowerCase();
+            if (!byPlatform[p]) byPlatform[p] = [];
+            byPlatform[p].push({ ...contact, ownerDid: profile.did, ownerName: profile.username });
         });
     });
 
-    const simulation = d3.forceSimulation(nodes)
-        .force('link', d3.forceLink(links).id(d => d.id).distance(100))
-        .force('charge', d3.forceManyBody().strength(-200))
-        .force('center', d3.forceCenter(width / 2, height / 2))
-        .force('collision', d3.forceCollide(30));
+    const hasAny = Object.keys(byPlatform).length > 0;
+    if (!hasAny) {
+        el.innerHTML = '<p class="text-secondary small mb-0">No external contacts found.</p>';
+        return;
+    }
 
-    const g = svg.append('g');
+    el.innerHTML = PLATFORMS.map(plat => {
+        const contacts = byPlatform[plat.key] || [];
+        if (!contacts.length) return '';
+        return `
+            <div class="mb-3">
+                <div class="d-flex align-items-center gap-1 mb-1">
+                    <i class="bi ${plat.icon} sc-social-badge ${plat.key}" style="font-size:1rem;padding:3px 6px;"></i>
+                    <span class="small fw-semibold">${plat.label}
+                        <span class="badge bg-secondary ms-1">${contacts.length}</span>
+                    </span>
+                </div>
+                <div class="list-group list-group-flush">
+                    ${contacts.map(c => {
+                        const cKey = storeNode(c);
+                        return `
+                        <div class="list-group-item sc-external-node bg-black border-secondary d-flex align-items-center justify-content-between py-1 px-2">
+                            <div>
+                                <span class="text-light small">${escHtml(c.username || c.name || 'Unknown')}</span>
+                                <div class="text-secondary" style="font-size:0.67rem;">via ${escHtml(c.ownerName || '')}</div>
+                            </div>
+                            <button class="btn btn-outline-info btn-sm py-0 px-2 sc-neon-btn sc-invite-btn"
+                                    data-invite-key="${escHtml(cKey)}"
+                                    style="font-size:0.68rem;">
+                                <i class="bi bi-envelope-plus"></i> Invite
+                            </button>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+    }).join('');
 
-    const link = g.append('g').selectAll('line')
-        .data(links).enter().append('line')
-        .attr('stroke', '#495057').attr('stroke-width', 1.5);
-
-    const node = g.append('g').selectAll('g')
-        .data(nodes).enter().append('g')
-        .style('cursor', 'pointer')
-        .call(d3.drag()
-            .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-            .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
-            .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
-        )
-        .on('click', (event, d) => showNodeDetail(d));
-
-    node.append('circle')
-        .attr('r', d => d.isMe ? 18 : 14)
-        .attr('fill', d => d.isMe ? '#198754' : (d.type === 'agent' ? '#ffc107' : '#0dcaf0'))
-        .attr('stroke', '#212529').attr('stroke-width', 2);
-
-    node.append('text')
-        .attr('dy', '0.35em').attr('text-anchor', 'middle')
-        .attr('font-size', '9px').attr('fill', '#212529').attr('font-weight', 'bold')
-        .text(d => d.name.substring(0, 6));
-
-    node.append('title').text(d => d.name + '\n' + d.id);
-
-    simulation.on('tick', () => {
-        link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-        node.attr('transform', d => `translate(${d.x},${d.y})`);
+    /* Attach invite listeners after HTML is in the DOM */
+    el.querySelectorAll('.sc-invite-btn[data-invite-key]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const stored = _nodeStore.get(btn.dataset.inviteKey);
+            if (stored) inviteContact(stored);
+        });
     });
-
-    // Zoom
-    svg.call(d3.zoom().scaleExtent([0.3, 3]).on('zoom', (event) => g.attr('transform', event.transform)));
 }
 
-function showNodeDetail(node) {
-    const detail = document.getElementById('node-detail');
-    const isMe = node.id === USER_DID;
-    const conns = networkData.map[node.id] || [];
-    detail.innerHTML = `
-        <div class="d-flex align-items-center gap-3 mb-3">
-            <i class="bi ${node.type === 'agent' ? 'bi-robot text-warning' : 'bi-person-circle text-info'} display-5"></i>
-            <div>
-                <h5 class="mb-0 text-light">${node.name} ${isMe ? '<span class="badge bg-success">You</span>' : ''}</h5>
-                <span class="badge ${node.type === 'agent' ? 'bg-warning text-dark' : 'bg-info text-dark'}">${node.type.toUpperCase()}</span>
-            </div>
-        </div>
-        <div class="mb-2">
-            <div class="text-secondary small">DID</div>
-            <code class="text-warning" style="font-size:0.65rem;word-break:break-all;">${node.id}</code>
-        </div>
-        <div class="mb-2">
-            <div class="text-secondary small">Connections: ${conns.length}</div>
-        </div>
-        <a href="/profile/${node.id}" class="btn btn-sm btn-outline-info mt-2">View Full Profile</a>
-    `;
+/* ─── Invite helper ─────────────────────────────────────────────── */
+function inviteContact(contactOrId) {
+    const contact = typeof contactOrId === 'string'
+        ? { id: contactOrId }
+        : contactOrId;
+    const name = escHtml(contact.username || contact.name || contact.id || 'this contact');
+    const nodeDetail = document.getElementById('node-detail');
+    const existing = nodeDetail.querySelector('#invite-feedback');
+    if (existing) existing.remove();
+    const feedback = document.createElement('div');
+    feedback.id = 'invite-feedback';
+    feedback.className = 'alert alert-success alert-sm mt-2 py-1 px-2 small';
+    feedback.textContent = `Invite sent to ${name}! (Feature coming soon)`;
+    nodeDetail.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 3000);
 }
 
-document.getElementById('refresh-btn').addEventListener('click', loadNetwork);
-loadNetwork();
+/* ─── Utility ───────────────────────────────────────────────────── */
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/* ─── Boot ──────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    loadNetwork();
+    setInterval(loadNetwork, 15000);
+});
 </script>
 {% endblock %}

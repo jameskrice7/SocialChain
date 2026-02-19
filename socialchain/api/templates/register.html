@@ -1,39 +1,108 @@
 {% extends "base.html" %}
 {% block title %}Register - SocialChain{% endblock %}
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-5">
-        <div class="card bg-black border-secondary">
+<div class="row justify-content-center mt-4">
+    <div class="col-md-5 col-lg-4">
+
+        <!-- Hexagonal graphic -->
+        <div class="text-center mb-3">
+            <svg width="200" height="160" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg"
+                 style="display:block;margin:0 auto;">
+                <defs>
+                    <filter id="glow2">
+                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+                <g class="sc-hex-outer" filter="url(#glow2)">
+                    <polygon points="100,8 114,16 114,32 100,40 86,32 86,16"
+                             fill="none" stroke="#198754" stroke-width="1.5" opacity="0.7"/>
+                    <polygon points="155,48 169,56 169,72 155,80 141,72 141,56"
+                             fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity="0.7"/>
+                    <polygon points="155,108 169,116 169,132 155,140 141,132 141,116"
+                             fill="none" stroke="#198754" stroke-width="1.5" opacity="0.7"/>
+                    <polygon points="45,48 59,56 59,72 45,80 31,72 31,56"
+                             fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity="0.7"/>
+                    <polygon points="45,108 59,116 59,132 45,140 31,132 31,116"
+                             fill="none" stroke="#198754" stroke-width="1.5" opacity="0.7"/>
+                    <line x1="100" y1="40" x2="141" y2="56"  stroke="#198754" stroke-width="0.8" opacity="0.5"/>
+                    <line x1="100" y1="40" x2="59"  y2="56"  stroke="#198754" stroke-width="0.8" opacity="0.5"/>
+                    <line x1="141" y1="80" x2="141" y2="116" stroke="#198754" stroke-width="0.8" opacity="0.5"/>
+                    <line x1="59"  y1="80" x2="59"  y2="116" stroke="#198754" stroke-width="0.8" opacity="0.5"/>
+                </g>
+                <g class="sc-hex-ring" filter="url(#glow2)">
+                    <polygon points="100,60 118,70 118,90 100,100 82,90 82,70"
+                             fill="rgba(25,135,84,0.1)" stroke="#198754" stroke-width="2"/>
+                    <text x="100" y="86" text-anchor="middle" font-size="16" font-weight="bold" fill="#198754"
+                          font-family="monospace">✦</text>
+                </g>
+            </svg>
+            <div class="sc-glow-text fw-bold fs-4 mb-1">SocialChain</div>
+            <div class="text-secondary small">The Exclusive Blockchain Social Network</div>
+        </div>
+
+        <!-- Register card -->
+        <div class="card card-verified bg-black">
             <div class="card-body p-4">
-                <h2 class="text-center mb-4 text-info"><i class="bi bi-link-45deg"></i> SocialChain</h2>
-                <h5 class="text-center text-secondary mb-4">Create your node identity</h5>
+                <h5 class="text-center text-secondary mb-4">
+                    <i class="bi bi-person-plus text-info"></i> Create your node identity
+                </h5>
                 <form method="post">
-                    <div class="mb-3">
-                        <label class="form-label text-secondary">Username</label>
-                        <input type="text" class="form-control bg-dark text-light border-secondary" name="username" required autofocus>
+                    <!-- Identity section -->
+                    <div class="mb-1 text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
+                        <i class="bi bi-person"></i> Identity
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-secondary">Agent Type</label>
+                        <label class="form-label text-secondary small">Username</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary"
+                               name="username" required autofocus autocomplete="username">
+                    </div>
+
+                    <hr class="border-secondary my-3">
+
+                    <!-- Node type section -->
+                    <div class="mb-1 text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
+                        <i class="bi bi-cpu"></i> Node Type
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Agent Type</label>
                         <select class="form-select bg-dark text-light border-secondary" name="agent_type">
                             <option value="human">Human (one per device)</option>
                             <option value="ai">AI Agent (one per agent)</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary">Password</label>
-                        <input type="password" class="form-control bg-dark text-light border-secondary" name="password" required>
+
+                    <hr class="border-secondary my-3">
+
+                    <!-- Security section -->
+                    <div class="mb-1 text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
+                        <i class="bi bi-shield-lock"></i> Security
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-secondary">Confirm Password</label>
-                        <input type="password" class="form-control bg-dark text-light border-secondary" name="confirm_password" required>
+                        <label class="form-label text-secondary small">Password</label>
+                        <input type="password" class="form-control bg-dark text-light border-secondary"
+                               name="password" required autocomplete="new-password">
                     </div>
-                    <button type="submit" class="btn btn-info w-100 mt-2">Register &amp; Join Network</button>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Confirm Password</label>
+                        <input type="password" class="form-control bg-dark text-light border-secondary"
+                               name="confirm_password" required autocomplete="new-password">
+                    </div>
+
+                    <button type="submit" class="btn btn-info w-100 mt-2">
+                        <i class="bi bi-link-45deg"></i> Register &amp; Join Network
+                    </button>
                 </form>
-                <div class="text-center mt-3">
-                    <small class="text-secondary">Already registered? <a href="{{ url_for('auth.login') }}" class="text-info">Login</a></small>
+                <hr class="border-secondary my-3">
+                <div class="text-center">
+                    <small class="text-secondary">
+                        Already registered?
+                        <a href="{{ url_for('auth.login') }}" class="text-info text-decoration-none">Sign in to your node</a>
+                    </small>
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 {% endblock %}

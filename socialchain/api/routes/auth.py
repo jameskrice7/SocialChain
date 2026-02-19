@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+import time
 from ..auth import create_user
 from ...social.profile import Profile, DeviceType
+from ...blockchain.transaction import Transaction
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -28,6 +30,17 @@ def login():
             session["user_did"] = user.did
             session["username"] = user.username
             session["agent_type"] = user.agent_type
+            # Record login status on blockchain
+            tx = Transaction(
+                sender=user.did,
+                recipient="NETWORK",
+                data={"type": "status_update", "status": "online", "timestamp": time.time()},
+            )
+            state.blockchain.add_transaction(tx)
+            profile = state.network_map.get_profile(user.did)
+            if profile:
+                profile.metadata["last_verified"] = time.time()
+                profile.metadata["blockchain_status"] = "verified"
             return redirect(url_for("web.dashboard"))
         flash("Invalid username or password", "error")
     return render_template("login.html")
