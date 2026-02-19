@@ -310,7 +310,7 @@ async function verifyProfile() {
     el.className = 'text-secondary';
     el.textContent = 'Verifying...';
     try {
-        const res = await fetch(`/api/social/profiles/${PROFILE_DID}/verify`, {method: 'POST'});
+        const res = await fetch(`/api/social/profiles/${encodeURIComponent(PROFILE_DID)}/verify`, {method: 'POST'});
         const result = await res.json();
         if (res.ok) {
             el.className = 'text-success';
@@ -339,7 +339,7 @@ async function saveSocialLinks() {
     el.className = 'text-secondary';
     el.textContent = 'Saving...';
     try {
-        const res = await fetch(`/api/social/profiles/${PROFILE_DID}/social-links`, {
+        const res = await fetch(`/api/social/profiles/${encodeURIComponent(PROFILE_DID)}/social-links`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({social_links: links})
@@ -439,11 +439,13 @@ async function loadActivity() {
             return;
         }
 
+        const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         feed.innerHTML = recent.map(tx => {
             const ts = tx.timestamp
                 ? new Date(typeof tx.timestamp === 'number' ? tx.timestamp * 1000 : tx.timestamp).toLocaleString()
                 : 'Unknown time';
-            const msg = (tx.data && tx.data.message) ? tx.data.message : JSON.stringify(tx.data || {});
+            const rawMsg = (tx.data && tx.data.message) ? tx.data.message : JSON.stringify(tx.data || {});
+            const msg = escHtml(rawMsg);
             return `<div class="sc-activity-item">
                 <div class="d-flex justify-content-between">
                     <span class="text-info small fw-bold"><i class="bi bi-box"></i> Block #${tx.block_index ?? '?'}</span>
