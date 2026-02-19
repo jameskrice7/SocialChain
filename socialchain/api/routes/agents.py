@@ -45,8 +45,9 @@ def submit_task(agent_did):
     )
     agent = state.agent_registry[agent_did]
     task_id = agent.submit_task(task)
-    agent.run_next_task()
-    return jsonify({"message": "Task submitted", "task": task.to_dict()}), 201
+    executed = agent.run_next_task()
+    result_task = executed if executed is not None else task
+    return jsonify({"message": "Task submitted", "task": result_task.to_dict()}), 201
 
 
 @agents_bp.route("/api/agents/<path:agent_did>/tasks", methods=["GET"])
