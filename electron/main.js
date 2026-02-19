@@ -1,10 +1,20 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, Tray, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, shell, ipcMain, dialog, Notification } = require('electron');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+
+// ── Auto-updater (electron-updater) ──────────────────────────────────────────
+// Loaded lazily so the app still works when electron-updater is not installed
+// (e.g. during local development without npm install).
+let autoUpdater = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch (_) {
+  // electron-updater not available – updates disabled
+}
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const FLASK_PORT = 5000;
@@ -296,6 +306,30 @@ function navigateTo(route) {
 ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('app:platform', () => process.platform);
 
+// Open a URL in the system default browser (invoked via preload openExternal)
+// Note: URL validation is intentionally repeated here as defense-in-depth;
+// the preload validation runs in the renderer context while this is the final
+// gate in the privileged main process.
+ipcMain.on('shell:openExternal', (_event, url) => {
+  if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1'))) {
+    shell.openExternal(url);
+  }
+});
+
+// Navigate the main window to an in-app route (invoked via preload navigate)
+ipcMain.on('app:navigate', (_event, route) => {
+  if (typeof route === 'string') {
+    navigateTo(route);
+  }
+});
+
+// Show a native OS notification (invoked via preload showNotification)
+ipcMain.on('app:notify', (_event, { title, body }) => {
+  if (Notification.isSupported()) {
+    new Notification({ title: String(title), body: String(body) }).show();
+  }
+});
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 function onQuit() {
   isQuitting = true;
@@ -315,6 +349,7 @@ app.whenReady().then(() => {
     }
     createMainWindow();
     createTray();
+    setupAutoUpdater();
   });
 });
 
@@ -350,3 +385,50 @@ app.on('will-quit', () => {
     }
   }
 });
+
+// ── Auto-updater wiring ───────────────────────────────────────────────────────
+function setupAutoUpdater() {
+  if (!autoUpdater) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info) => {
+    console.log(`[SocialChain] Update available: ${info.version}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:available', { version: info.version });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log(`[SocialChain] Update downloaded: ${info.version}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:downloaded', { version: info.version });
+    }
+    // Show native prompt asking the user to restart
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: `SocialChain ${info.version} has been downloaded.`,
+      detail: 'Restart now to apply the update, or continue and update on next launch.',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[SocialChain] Auto-updater error:', err.message);
+  });
+
+  // Check for updates after a short delay so the app finishes starting up first
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.error('[SocialChain] checkForUpdatesAndNotify failed:', err.message);
+    });
+  }, 10000);
+}
