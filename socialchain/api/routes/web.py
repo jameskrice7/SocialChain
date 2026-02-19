@@ -5,11 +5,31 @@ web_bp = Blueprint("web", __name__)
 
 
 @web_bp.route("/")
+def index():
+    """Public landing page when not logged in; dashboard when logged in."""
+    if "user_did" in session:
+        state = current_app.app_state
+        chain_data = state.blockchain.to_dict()
+        return render_template(
+            "dashboard.html",
+            chain=chain_data,
+            username=session.get("username"),
+            user_did=session.get("user_did"),
+        )
+    return render_template("landing.html")
+
+
+@web_bp.route("/dashboard")
 @login_required
 def dashboard():
     state = current_app.app_state
     chain_data = state.blockchain.to_dict()
-    return render_template("dashboard.html", chain=chain_data, username=session.get("username"), user_did=session.get("user_did"))
+    return render_template(
+        "dashboard.html",
+        chain=chain_data,
+        username=session.get("username"),
+        user_did=session.get("user_did"),
+    )
 
 
 @web_bp.route("/profile")
@@ -30,3 +50,10 @@ def profile(did=None):
 def network():
     state = current_app.app_state
     return render_template("network.html", username=session.get("username"), user_did=session.get("user_did"))
+
+
+@web_bp.route("/my-network")
+@login_required
+def my_network():
+    """Full-page 3D interactive network visualization for the logged-in user."""
+    return render_template("user_network.html", username=session.get("username"), user_did=session.get("user_did"))
