@@ -84,13 +84,13 @@ def test_my_network_requires_login(client):
 
 
 def test_my_network_authenticated(client, app, state):
-    """GET /my-network with a session should return the 3D network page."""
+    """GET /my-network with a session should return the Earth Network page."""
     _login(client, app, state)
     response = client.get("/my-network")
     assert response.status_code == 200
     html = response.data.decode()
-    # Should contain key 3D network elements
-    assert "3D" in html or "ForceGraph3D" in html or "My 3D Network" in html
+    # Should contain key Earth Network elements
+    assert "Earth Network" in html or "sc-earth-page" in html or "importmap" in html
 
 
 def test_ide_requires_login(client):

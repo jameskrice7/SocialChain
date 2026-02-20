@@ -42,7 +42,7 @@
         <a href="{{ url_for('web.network') }}" class="sc-ab-btn {% if request.endpoint == 'web.network' %}active{% endif %}"
            data-tooltip="Network Map"><i class="bi bi-diagram-3"></i></a>
         <a href="{{ url_for('web.my_network') }}" class="sc-ab-btn {% if request.endpoint == 'web.my_network' %}active{% endif %}"
-           data-tooltip="3D Network"><i class="bi bi-globe2"></i></a>
+           data-tooltip="Earth Network"><i class="bi bi-globe2"></i></a>
         <a href="{{ url_for('web.ide') }}" class="sc-ab-btn {% if request.endpoint == 'web.ide' %}active{% endif %}"
            data-tooltip="Network Workbench"><i class="bi bi-layout-wtf"></i></a>
         <a href="{{ url_for('web.profile') }}" class="sc-ab-btn {% if request.endpoint == 'web.profile' %}active{% endif %}"
@@ -71,7 +71,7 @@
                     <ul class="navbar-nav me-auto">
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.dashboard') }}"><i class="bi bi-grid"></i> Dashboard</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.network') }}"><i class="bi bi-diagram-3"></i> Network</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.my_network') }}"><i class="bi bi-globe2"></i> 3D Network</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.my_network') }}"><i class="bi bi-globe2"></i> Earth Network</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.ide') }}"><i class="bi bi-layout-wtf"></i> Workbench</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.profile') }}"><i class="bi bi-person"></i> Profile</a></li>
                     </ul>
