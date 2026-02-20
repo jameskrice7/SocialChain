@@ -64,3 +64,17 @@ def my_network():
 def ide():
     """Network Workbench IDE: node registry, topology builder, transaction inspector, contract editor."""
     return render_template("ide.html", username=session.get("username"), user_did=session.get("user_did"))
+
+
+@web_bp.route("/contracts")
+@login_required
+def contracts():
+    """Smart contracts management page."""
+    return render_template("contracts.html", username=session.get("username"), user_did=session.get("user_did"))
+
+
+@web_bp.route("/internet")
+@login_required
+def internet():
+    """Internet-level network visualization with web search."""
+    return render_template("internet.html", username=session.get("username"), user_did=session.get("user_did"))
