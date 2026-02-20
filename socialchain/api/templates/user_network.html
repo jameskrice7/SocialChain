@@ -1,876 +1,450 @@
 {% extends "base.html" %}
-{% block title %}My 3D Network – SocialChain{% endblock %}
+{% block title %}Earth Network — SocialChain{% endblock %}
 
 {% block content %}
 <style>
-/* ── 3D Network page ── */
-#sc-3d-network-page {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 64px);   /* full viewport minus navbar */
-    margin: -1rem -1.5rem 0;      /* bleed to container edges */
-    overflow: hidden;
+#sc-bg-canvas { display: none !important; }
+#sc-earth-page {
+    display:flex; flex-direction:column;
+    height:calc(100vh - 64px);
+    margin:-1rem -1.5rem 0;
+    overflow:hidden; background:#00000a;
 }
-
-/* ── Top bar ── */
-#sc-3d-topbar {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: .5rem;
-    padding: .6rem 1.25rem;
-    background: rgba(5,5,16,.95);
-    border-bottom: 1px solid rgba(13,202,240,0.15);
-    z-index: 10;
+#sc-earth-topbar {
+    flex-shrink:0; display:flex; align-items:center;
+    justify-content:space-between; gap:.5rem; padding:.45rem 1rem;
+    background:rgba(0,0,10,.95); border-bottom:1px solid rgba(13,202,240,.15);
+    z-index:20; flex-wrap:wrap;
 }
-
-/* ── Main area = graph + sidebar ── */
-#sc-3d-main {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    position: relative;
+#sc-earth-main { flex:1; display:flex; position:relative; overflow:hidden; }
+#sc-earth-canvas-wrap { flex:1; position:relative; overflow:hidden; }
+#sc-earth-canvas-wrap canvas { display:block; }
+#sc-earth-loading {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,14,.92); z-index:50; gap:.8rem;
+    font-size:.9rem; color:#6c757d; transition:opacity .5s;
 }
-
-/* ── 3D Canvas wrapper ── */
-#sc-graph-wrapper {
-    flex: 1;
-    position: relative;
-    background: #050510;
-    overflow: hidden;
+#sc-earth-loading.hidden { opacity:0; pointer-events:none; }
+#sc-earth-sidebar {
+    width:280px; flex-shrink:0; background:rgba(5,5,18,.97);
+    border-left:1px solid rgba(13,202,240,.12);
+    display:flex; flex-direction:column; overflow:hidden;
+    transition:width .25s; z-index:10;
 }
-#sc-graph-wrapper canvas {
-    display: block;
+#sc-earth-sidebar.collapsed { width:0; }
+#sc-sb-toggle {
+    position:absolute; right:280px; top:50%; transform:translateY(-50%);
+    z-index:30; background:rgba(13,202,240,.1);
+    border:1px solid rgba(13,202,240,.25); border-right:none;
+    border-radius:6px 0 0 6px; color:#0dcaf0;
+    padding:8px 5px; cursor:pointer; line-height:1; transition:right .25s;
 }
-
-/* ── Loading overlay ── */
-#sc-3d-loading {
-    position: absolute;
-    inset: 0;
-    background: rgba(5,5,16,.88);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: .75rem;
-    z-index: 20;
-    font-size: .95rem;
-    color: #6c757d;
-    transition: opacity .4s;
+#sc-sb-toggle.collapsed {
+    right:0; border-radius:0 6px 6px 0;
+    border:1px solid rgba(13,202,240,.25); border-left:none;
 }
-
-/* ── Sidebar ── */
-#sc-3d-sidebar {
-    width: 300px;
-    flex-shrink: 0;
-    background: rgba(8,8,20,.97);
-    border-left: 1px solid rgba(13,202,240,0.12);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: width .25s;
-    z-index: 5;
+#sc-earth-sidebar-scroll {
+    flex:1; overflow-y:auto;
+    scrollbar-width:thin; scrollbar-color:rgba(13,202,240,.2) transparent;
 }
-#sc-3d-sidebar.collapsed { width: 0; }
-#sc-sidebar-toggle {
-    position: absolute;
-    right: 300px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 15;
-    background: rgba(13,202,240,0.12);
-    border: 1px solid rgba(13,202,240,0.3);
-    border-right: none;
-    border-radius: 6px 0 0 6px;
-    color: #0dcaf0;
-    padding: 8px 5px;
-    cursor: pointer;
-    transition: right .25s;
-    line-height: 1;
+.sc-earth-section { padding:.65rem .9rem; border-bottom:1px solid rgba(255,255,255,.05); }
+.sc-earth-section h6 {
+    font-size:.65rem; font-weight:700; letter-spacing:1.2px;
+    text-transform:uppercase; color:#6c757d; margin-bottom:.5rem;
 }
-#sc-sidebar-toggle.collapsed { right: 0; border-radius: 0 6px 6px 0; border: 1px solid rgba(13,202,240,0.3); border-left: none; }
-
-.sc-3d-sidebar-section {
-    padding: .75rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.sc-3d-sidebar-section h6 {
-    font-size: .7rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: #6c757d;
-    margin-bottom: .6rem;
-}
-#sc-sidebar-scroll {
-    flex: 1;
-    overflow-y: auto;
-}
-
-/* ── Node detail panel ── */
-#sc-node-detail-panel {
-    background: rgba(13,202,240,0.03);
-    border-bottom: 1px solid rgba(13,202,240,0.1);
-    padding: 1rem;
-}
-.sc-nd-avatar {
-    width: 46px; height: 46px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.4rem;
-    flex-shrink: 0;
-}
-
-/* ── Breadcrumb path ── */
-#sc-path-bar {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
-    padding: .4rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: .75rem;
-    color: #6c757d;
-    background: rgba(5,5,16,.6);
-    min-height: 32px;
-}
-.sc-path-crumb {
-    background: rgba(13,202,240,0.08);
-    border: 1px solid rgba(13,202,240,0.2);
-    color: #0dcaf0;
-    padding: 1px 10px;
-    border-radius: 100px;
-    cursor: pointer;
-    transition: background .15s;
-}
-.sc-path-crumb:hover { background: rgba(13,202,240,0.18); }
-.sc-path-sep { color: rgba(255,255,255,0.2); }
-
-/* ── Stats chips ── */
 .sc-stat-chip {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    background: rgba(13,202,240,0.05);
-    border: 1px solid rgba(13,202,240,0.1);
-    border-radius: 8px;
-    padding: .35rem .6rem;
-    min-width: 58px;
+    display:inline-flex; flex-direction:column; align-items:center;
+    background:rgba(13,202,240,.05); border:1px solid rgba(13,202,240,.12);
+    border-radius:8px; padding:.28rem .55rem; min-width:52px;
 }
-.sc-stat-chip .val { font-size: 1.1rem; font-weight: 700; color: #0dcaf0; line-height: 1.1; }
-.sc-stat-chip .lbl { font-size: .6rem; color: #6c757d; letter-spacing: .5px; text-transform: uppercase; }
-
-/* ── Search ── */
-#sc-search {
-    background: rgba(0,0,0,.4);
-    border: 1px solid rgba(255,255,255,.1);
-    color: #e0e0e0;
-    border-radius: 6px;
-    padding: .35rem .7rem;
-    font-size: .82rem;
-    width: 100%;
+.sc-stat-chip .val { font-size:.95rem; font-weight:700; color:#0dcaf0; line-height:1.1; }
+.sc-stat-chip .lbl { font-size:.57rem; color:#6c757d; letter-spacing:.5px; text-transform:uppercase; }
+.sc-ctrl-btn {
+    background:rgba(13,202,240,.07); border:1px solid rgba(13,202,240,.2);
+    border-radius:6px; color:#0dcaf0; padding:4px 9px; font-size:.76rem;
+    cursor:pointer; transition:all .15s; white-space:nowrap; text-decoration:none;
 }
-#sc-search:focus { outline: none; border-color: rgba(13,202,240,.4); }
-
-/* ── Depth control ── */
-.sc-depth-btn {
-    background: rgba(13,202,240,0.07);
-    border: 1px solid rgba(13,202,240,0.2);
-    border-radius: 6px;
-    color: #0dcaf0;
-    padding: 3px 12px;
-    font-size: .8rem;
-    cursor: pointer;
-    transition: background .15s;
+.sc-ctrl-btn:hover  { background:rgba(13,202,240,.18); color:#0dcaf0; }
+.sc-ctrl-btn.active { background:rgba(13,202,240,.22); box-shadow:0 0 8px rgba(13,202,240,.3); }
+.sc-layer-btn {
+    display:flex; align-items:center; gap:.5rem; width:100%;
+    background:transparent; border:1px solid rgba(255,255,255,.07);
+    border-radius:6px; color:#adb5bd; padding:.32rem .65rem;
+    font-size:.78rem; cursor:pointer; transition:all .15s; text-align:left;
 }
-.sc-depth-btn.active, .sc-depth-btn:hover {
-    background: rgba(13,202,240,0.2);
-    box-shadow: 0 0 8px rgba(13,202,240,.2);
+.sc-layer-btn:hover  { background:rgba(255,255,255,.04); }
+.sc-layer-btn.active { border-color:rgba(13,202,240,.35); color:#e0e0e0; }
+.sc-layer-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.lbadge { font-size:.63rem; padding:2px 7px; border-radius:100px; font-weight:600; letter-spacing:.4px; }
+.lbadge.space    { background:rgba(192,212,255,.12); color:#c0d4ff; border:1px solid rgba(192,212,255,.25); }
+.lbadge.internet { background:rgba(13,202,240,.1);   color:#0dcaf0; border:1px solid rgba(13,202,240,.25); }
+.lbadge.human    { background:rgba(37,193,122,.12);  color:#25c17a; border:1px solid rgba(37,193,122,.25); }
+.lbadge.ai       { background:rgba(255,193,7,.1);    color:#ffc107; border:1px solid rgba(255,193,7,.25);  }
+.lbadge.physical { background:rgba(255,107,53,.12);  color:#ff6b35; border:1px solid rgba(255,107,53,.25); }
+.lbadge.self     { background:rgba(167,139,250,.15); color:#a78bfa; border:1px solid rgba(167,139,250,.3); }
+#sc-earth-search {
+    width:100%; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.1);
+    color:#e0e0e0; border-radius:6px; padding:.3rem .65rem; font-size:.8rem;
 }
-
-/* ── Context tooltip ── */
-#sc-3d-tooltip {
-    position: fixed;
-    pointer-events: none;
-    background: rgba(8,12,24,.95);
-    border: 1px solid rgba(13,202,240,0.35);
-    color: #e0e0e0;
-    padding: 6px 12px;
-    border-radius: 7px;
-    font-size: .78rem;
-    z-index: 9999;
-    display: none;
-    max-width: 200px;
-    white-space: nowrap;
+#sc-earth-search:focus { outline:none; border-color:rgba(13,202,240,.4); }
+.sc-node-item {
+    display:flex; align-items:center; gap:.45rem; padding:.28rem .35rem;
+    border-radius:5px; cursor:pointer; font-size:.77rem; transition:background .1s;
 }
-
-/* ── Pulse ring ── */
-@keyframes sc3dPulse {
-    0%,100%{box-shadow:0 0 0 0 rgba(13,202,240,.5)}
-    50%{box-shadow:0 0 0 8px rgba(13,202,240,0)}
+.sc-node-item:hover { background:rgba(13,202,240,.07); }
+.sc-node-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+#sc-earth-tooltip {
+    position:fixed; pointer-events:none; background:rgba(5,8,22,.96);
+    border:1px solid rgba(13,202,240,.35); color:#e0e0e0;
+    padding:5px 11px; border-radius:7px; font-size:.76rem;
+    z-index:9999; display:none; max-width:230px;
 }
-
-/* ── Legend ── */
-.sc-legend-dot {
-    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
-}
+@keyframes sc-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.spin { animation:sc-spin .7s linear infinite; display:inline-block; }
+.sc-leg-dot { width:9px; height:9px; border-radius:50%; display:inline-block; flex-shrink:0; }
 </style>
-
-<div id="sc-3d-network-page">
-
-    <!-- ── Top bar ── -->
-    <div id="sc-3d-topbar">
-        <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div>
-                <span class="fw-bold text-info" style="font-size:.95rem;">
-                    <i class="bi bi-globe2"></i> My 3D Network
-                </span>
-                <span class="text-secondary ms-2" style="font-size:.72rem;">
-                    <code class="text-warning">{{ user_did[:32] }}…</code>
-                </span>
-            </div>
-            <!-- Stats chips -->
-            <div class="d-flex gap-2" id="sc-stat-chips">
-                <div class="sc-stat-chip"><span class="val" id="sc-stat-nodes">–</span><span class="lbl">Nodes</span></div>
-                <div class="sc-stat-chip"><span class="val" id="sc-stat-links">–</span><span class="lbl">Links</span></div>
-                <div class="sc-stat-chip"><span class="val" id="sc-stat-depth">1</span><span class="lbl">Depth</span></div>
-            </div>
-        </div>
-
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <!-- Depth buttons -->
-            <div class="d-flex gap-1 align-items-center">
-                <span class="text-secondary" style="font-size:.72rem;">DEPTH:</span>
-                <button class="sc-depth-btn active" data-depth="1" id="depth-btn-1">1</button>
-                <button class="sc-depth-btn"        data-depth="2" id="depth-btn-2">2</button>
-                <button class="sc-depth-btn"        data-depth="3" id="depth-btn-3">3</button>
-                <button class="sc-depth-btn"        data-depth="0" id="depth-btn-all">All</button>
-            </div>
-            <!-- View controls -->
-            <button class="sc-depth-btn" id="btn-reset-view" title="Reset camera">
-                <i class="bi bi-arrows-fullscreen"></i>
-            </button>
-            <button class="sc-depth-btn" id="btn-refresh" title="Refresh data">
-                <i class="bi bi-arrow-clockwise" id="refresh-icon"></i>
-            </button>
-            <!-- Link to 2D network -->
-            <a href="{{ url_for('web.network') }}" class="sc-depth-btn text-decoration-none" style="font-size:.78rem;">
-                <i class="bi bi-diagram-3"></i> 2D View
-            </a>
-        </div>
+<div id="sc-earth-page">
+  <div id="sc-earth-topbar">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="fw-bold" style="color:#0dcaf0;font-size:.9rem;"><i class="bi bi-globe2"></i> Earth Network</span>
+      <div class="d-flex gap-2">
+        <div class="sc-stat-chip"><span class="val" id="stat-total">&ndash;</span><span class="lbl">Nodes</span></div>
+        <div class="sc-stat-chip"><span class="val" id="stat-links">&ndash;</span><span class="lbl">Links</span></div>
+        <div class="sc-stat-chip"><span class="val" id="stat-sc">&ndash;</span><span class="lbl">SC Users</span></div>
+      </div>
     </div>
-
-    <!-- ── Breadcrumb path ── -->
-    <div id="sc-path-bar">
-        <i class="bi bi-signpost-2 text-secondary me-1"></i>
-        <span id="sc-path-content" class="d-flex align-items-center gap-1 flex-wrap">
-            <span class="sc-path-crumb" data-idx="0">Root</span>
-        </span>
+    <div class="d-flex align-items-center gap-1 flex-wrap">
+      <button class="sc-ctrl-btn" id="btn-space">&#128752; Space</button>
+      <button class="sc-ctrl-btn" id="btn-human">&#128101; Humans</button>
+      <button class="sc-ctrl-btn" id="btn-internet">&#128279; Internet</button>
+      <button class="sc-ctrl-btn" id="btn-physical">&#127970; Physical</button>
+      <div style="width:1px;height:16px;background:rgba(255,255,255,.08);margin:0 2px;"></div>
+      <button class="sc-ctrl-btn" id="btn-reset"><i class="bi bi-arrows-fullscreen"></i></button>
+      <button class="sc-ctrl-btn active" id="btn-autorot"><i class="bi bi-arrow-repeat"></i></button>
+      <button class="sc-ctrl-btn" id="btn-refresh"><i class="bi bi-arrow-clockwise" id="sc-refresh-icon"></i></button>
+      <a href="{{ url_for('web.network') }}" class="sc-ctrl-btn"><i class="bi bi-diagram-3"></i> 2D</a>
     </div>
-
-    <!-- ── Main area ── -->
-    <div id="sc-3d-main">
-
-        <!-- Graph canvas -->
-        <div id="sc-graph-wrapper">
-            <div id="sc-3d-loading">
-                <div class="spinner-border text-info" style="width:2rem;height:2rem;"></div>
-                <span>Loading your network from the blockchain…</span>
+  </div>
+  <div id="sc-earth-main">
+    <div id="sc-earth-canvas-wrap">
+      <div id="sc-earth-loading">
+        <div class="spinner-border text-info" style="width:2rem;height:2rem;"></div>
+        <span>Initializing Earth network&hellip;</span>
+      </div>
+    </div>
+    <button id="sc-sb-toggle" title="Toggle panel"><i class="bi bi-layout-sidebar-reverse" id="sc-sb-icon"></i></button>
+    <div id="sc-earth-sidebar">
+      <div id="sc-earth-sidebar-scroll">
+        <div class="sc-earth-section">
+          <h6>Selected Node</h6>
+          <div id="sc-nd-placeholder" class="text-secondary small d-flex align-items-center gap-1"><i class="bi bi-cursor"></i> Click a node to inspect</div>
+          <div id="sc-nd-content" class="d-none">
+            <div class="d-flex align-items-start gap-2 mb-2">
+              <div id="sc-nd-icon" style="font-size:1.5rem;line-height:1;flex-shrink:0;"></div>
+              <div style="min-width:0;flex:1;">
+                <div class="fw-bold text-light text-truncate" id="sc-nd-name" style="font-size:.88rem;"></div>
+                <div id="sc-nd-badges" class="d-flex gap-1 flex-wrap mt-1"></div>
+              </div>
             </div>
-            <div id="sc-graph"></div>
+            <div class="text-secondary mb-2" style="font-size:.65rem;word-break:break-all;" id="sc-nd-did"></div>
+            <div id="sc-nd-meta" class="mb-2" style="font-size:.72rem;"></div>
+            <div class="d-flex gap-2">
+              <button class="sc-ctrl-btn" id="sc-nd-focus" style="font-size:.72rem;"><i class="bi bi-camera"></i> Focus</button>
+              <button class="sc-ctrl-btn" id="sc-nd-chat"  style="font-size:.72rem;"><i class="bi bi-chat-dots"></i> Chat</button>
+            </div>
+          </div>
         </div>
-
-        <!-- Toggle sidebar button -->
-        <button id="sc-sidebar-toggle" title="Toggle sidebar">
-            <i class="bi bi-layout-sidebar-reverse" id="sidebar-toggle-icon"></i>
-        </button>
-
-        <!-- Sidebar -->
-        <div id="sc-3d-sidebar">
-            <div id="sc-sidebar-scroll">
-
-                <!-- Node detail -->
-                <div id="sc-node-detail-panel">
-                    <div class="d-flex align-items-center gap-2 text-secondary small mb-1">
-                        <i class="bi bi-cursor"></i> Click a node to inspect it
-                    </div>
-                    <div id="sc-nd-content" class="d-none">
-                        <div class="d-flex align-items-start gap-2">
-                            <div class="sc-nd-avatar" id="sc-nd-avatar"></div>
-                            <div class="flex-grow-1 min-w-0">
-                                <div class="fw-bold text-light text-truncate" id="sc-nd-name"></div>
-                                <div id="sc-nd-badges" class="mt-1"></div>
-                            </div>
-                        </div>
-                        <div class="text-secondary mt-2" style="font-size:.68rem;word-break:break-all;" id="sc-nd-did"></div>
-                        <div id="sc-nd-meta" class="mt-2"></div>
-                        <div class="d-flex gap-2 mt-3 flex-wrap">
-                            <button class="sc-depth-btn" id="sc-nd-explore" style="font-size:.75rem;">
-                                <i class="bi bi-diagram-3"></i> Explore
-                            </button>
-                            <button class="sc-depth-btn" id="sc-nd-focus" style="font-size:.75rem;">
-                                <i class="bi bi-camera"></i> Focus
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Search -->
-                <div class="sc-3d-sidebar-section">
-                    <h6>Search Nodes</h6>
-                    <input type="text" id="sc-search" placeholder="Search by name or DID…">
-                    <div id="sc-search-results" class="mt-2"></div>
-                </div>
-
-                <!-- Legend -->
-                <div class="sc-3d-sidebar-section">
-                    <h6>Legend</h6>
-                    <div class="d-flex flex-column gap-2" style="font-size:.8rem;">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="sc-legend-dot" style="background:#198754;box-shadow:0 0 6px #19875480;"></span>
-                            <span class="text-secondary">You (root node)</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="sc-legend-dot" style="background:#0dcaf0;box-shadow:0 0 6px #0dcaf080;"></span>
-                            <span class="text-secondary">Human SC Node</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="sc-legend-dot" style="background:#ffc107;box-shadow:0 0 6px #ffc10780;"></span>
-                            <span class="text-secondary">AI Agent</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="sc-legend-dot" style="background:none;border:1px dashed #6c757d;"></span>
-                            <span class="text-secondary">External Contact</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- All nodes list -->
-                <div class="sc-3d-sidebar-section">
-                    <h6>All Nodes <span class="badge bg-secondary ms-1" id="sc-nodes-count-badge">0</span></h6>
-                    <div id="sc-nodes-list" style="max-height:300px;overflow-y:auto;font-size:.8rem;"></div>
-                </div>
-
-            </div>
-        </div><!-- /sidebar -->
-
-    </div><!-- /main -->
-
-</div><!-- /page -->
-
-<div id="sc-3d-tooltip"></div>
+        <div class="sc-earth-section">
+          <h6>Search Nodes</h6>
+          <input type="text" id="sc-earth-search" placeholder="Name, type, layer, DID&hellip;" autocomplete="off">
+          <div id="sc-search-results" class="mt-2" style="max-height:190px;overflow-y:auto;"></div>
+        </div>
+        <div class="sc-earth-section">
+          <h6>Layers</h6>
+          <div class="d-flex flex-column gap-1">
+            <button class="sc-layer-btn active" data-layer="space"><span class="sc-layer-dot" style="background:#c0d4ff;box-shadow:0 0 4px #c0d4ff90;"></span><span style="flex:1;">Space Assets</span><span class="badge bg-secondary" id="lc-space">&ndash;</span></button>
+            <button class="sc-layer-btn active" data-layer="human"><span class="sc-layer-dot" style="background:#25c17a;box-shadow:0 0 4px #25c17a90;"></span><span style="flex:1;">Humans &amp; AI</span><span class="badge bg-secondary" id="lc-human">&ndash;</span></button>
+            <button class="sc-layer-btn active" data-layer="internet"><span class="sc-layer-dot" style="background:#0dcaf0;box-shadow:0 0 4px #0dcaf090;"></span><span style="flex:1;">Internet</span><span class="badge bg-secondary" id="lc-internet">&ndash;</span></button>
+            <button class="sc-layer-btn active" data-layer="physical"><span class="sc-layer-dot" style="background:#ff6b35;box-shadow:0 0 4px #ff6b3590;"></span><span style="flex:1;">Physical Assets</span><span class="badge bg-secondary" id="lc-physical">&ndash;</span></button>
+          </div>
+        </div>
+        <div class="sc-earth-section">
+          <h6>Legend</h6>
+          <div class="d-flex flex-column gap-2" style="font-size:.77rem;">
+            <div class="d-flex align-items-center gap-2"><span class="sc-leg-dot" style="background:#c0d4ff;box-shadow:0 0 4px #c0d4ff;"></span><span class="text-secondary">Satellites / Space Assets</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="sc-leg-dot" style="background:#25c17a;box-shadow:0 0 4px #25c17a;"></span><span class="text-secondary">Human SC Nodes</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="sc-leg-dot" style="background:#ffc107;box-shadow:0 0 4px #ffc107;"></span><span class="text-secondary">AI Agents</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="sc-leg-dot" style="background:#a78bfa;box-shadow:0 0 4px #a78bfa;"></span><span class="text-secondary">You (active user)</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="sc-leg-dot" style="background:#0dcaf0;box-shadow:0 0 4px #0dcaf0;"></span><span class="text-secondary">Internet Infrastructure</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="sc-leg-dot" style="background:#ff6b35;box-shadow:0 0 4px #ff6b35;"></span><span class="text-secondary">Physical / Earth Assets</span></div>
+          </div>
+        </div>
+        <div class="sc-earth-section">
+          <h6>SC Nodes <span class="badge bg-secondary ms-1" id="sc-node-badge">0</span></h6>
+          <div id="sc-nodes-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="sc-earth-tooltip"></div>
 {% endblock %}
-
 {% block scripts %}
-<!-- 3D Force Graph (Three.js bundled) -->
-<script src="https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
-
-<script>
-const USER_DID  = {{ user_did | tojson }};
-const USERNAME  = {{ username | tojson }};
-
-/* ─── State ────────────────────────────────────────────── */
-let rawNodes       = [];   // all nodes from API
-let rawLinks       = [];   // all links from API
-let allProfiles    = [];   // all profiles from API
-let focusedNodeId  = null; // currently focused node (fractal exploration)
-let currentDepth   = 1;    // hop depth to show from focused node
-let explorationPath = [];  // breadcrumb trail: [{id, label}]
-let graphInstance  = null;
-
-const USER_NODE_ID = USER_DID;
-
-/* ─── DOM refs ─────────────────────────────────────────── */
-const graphEl     = document.getElementById('sc-graph');
-const loadingEl   = document.getElementById('sc-3d-loading');
-const sidebar     = document.getElementById('sc-3d-sidebar');
-const sidebarToggle = document.getElementById('sc-sidebar-toggle');
-const toggleIcon  = document.getElementById('sidebar-toggle-icon');
-
-/* ─── Sidebar toggle ───────────────────────────────────── */
-sidebarToggle.addEventListener('click', () => {
-    const collapsed = sidebar.classList.toggle('collapsed');
-    sidebarToggle.classList.toggle('collapsed', collapsed);
-    toggleIcon.className = collapsed ? 'bi bi-layout-sidebar' : 'bi bi-layout-sidebar-reverse';
-    setTimeout(() => {
-        const w = graphEl.parentElement.clientWidth;
-        if (graphInstance && typeof graphInstance.width === 'function') graphInstance.width(w);
-    }, 280);
-});
-
-/* ─── Depth buttons ────────────────────────────────────── */
-document.querySelectorAll('[data-depth]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-depth]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentDepth = parseInt(btn.dataset.depth, 10);
-        document.getElementById('sc-stat-depth').textContent = currentDepth || '∞';
-        renderGraph();
-    });
-});
-
-/* ─── Load data ────────────────────────────────────────── */
-async function loadData() {
-    loadingEl.style.opacity = '1';
-    loadingEl.style.display = 'flex';
-    document.getElementById('refresh-icon').classList.add('spin');
-
-    try {
-        const [profRes, mapRes] = await Promise.all([
-            fetch('/api/social/profiles'),
-            fetch('/api/social/map')
-        ]);
-        if (profRes.ok) { const d = await profRes.json(); allProfiles = d.profiles || []; }
-        if (mapRes.ok) {
-            const d = await mapRes.json();
-            const adjList = d.map || {};
-
-            // Build profile lookup by DID
-            const profByDid = {};
-            allProfiles.forEach(p => { profByDid[p.did] = p; });
-
-            // Convert adjacency list {did: [did...]} → nodes + links
-            const nodeSet = new Set(Object.keys(adjList));
-            // Also include user node even if not in map yet
-            nodeSet.add(USER_NODE_ID);
-
-            rawNodes = [...nodeSet].map(did => {
-                const p = profByDid[did] || {};
-                return {
-                    did: did,
-                    _id: did,
-                    username: p.display_name || p.username || did.slice(-12),
-                    is_agent: p.device_type === 'agent',
-                    metadata: p.metadata || {}
-                };
-            });
-
-            rawLinks = [];
-            const seen = new Set();
-            Object.entries(adjList).forEach(([src, targets]) => {
-                (targets || []).forEach(tgt => {
-                    const key = [src, tgt].sort().join('→');
-                    if (!seen.has(key)) {
-                        seen.add(key);
-                        rawLinks.push({ source: src, target: tgt });
-                    }
-                });
-            });
-        }
-    } catch(e) {
-        console.warn('Network load error:', e);
-    }
-
-    document.getElementById('refresh-icon').classList.remove('spin');
-    renderGraph();
-    renderNodesList();
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
 }
-
-/* ─── Build sub-graph from a root with given depth ─────── */
-function buildSubGraph(rootId, depth) {
-    const idMap = new Map(rawNodes.map(n => [n.did || n.id, n]));
-
-    if (!depth) {
-        // depth=0 means show all
-        const nodes = rawNodes.map(n => ({ ...n, _id: n.did || n.id }));
-        const links = rawLinks.map(l => ({ ...l }));
-        return { nodes, links };
-    }
-
-    const visited = new Map();  // id -> hop distance
-    const queue   = [[rootId, 0]];
-    visited.set(rootId, 0);
-
-    while (queue.length) {
-        const [cur, d] = queue.shift();
-        if (d >= depth) continue;
-        rawLinks.forEach(l => {
-            const s = typeof l.source === 'object' ? l.source.id : l.source;
-            const t = typeof l.target === 'object' ? l.target.id : l.target;
-            if (s === cur && !visited.has(t)) { visited.set(t, d+1); queue.push([t, d+1]); }
-            if (t === cur && !visited.has(s)) { visited.set(s, d+1); queue.push([s, d+1]); }
-        });
-    }
-
-    const nodes = [...visited.keys()].map(id => {
-        const raw = idMap.get(id);
-        if (raw) return { ...raw, _id: id, _hop: visited.get(id) };
-        return { _id: id, did: id, username: id.slice(0, 12), _hop: visited.get(id) };
-    });
-    const nodeSet = new Set(nodes.map(n => n._id));
-    const links = rawLinks.filter(l => {
-        const s = typeof l.source === 'object' ? l.source.id : l.source;
-        const t = typeof l.target === 'object' ? l.target.id : l.target;
-        return nodeSet.has(s) && nodeSet.has(t);
-    });
-    return { nodes, links };
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const USER_DID = {{ user_did | tojson }};
+const USERNAME = {{ username | tojson }};
+const EARTH_R  = 1.2;
+const LAYER = {
+    physical: { r:1.78, color:0xff6b35, emGain:0.28, nodeSize:0.055 },
+    internet: { r:2.55, color:0x0dcaf0, emGain:0.22, nodeSize:0.038 },
+    human:    { r:3.50, color:0x25c17a, emGain:0.25, nodeSize:0.060 },
+    space:    { r:5.20, color:0xc0d4ff, emGain:0.20, nodeSize:0.065 },
+};
+const AI_COL=0xffc107, SELF_COL=0xa78bfa;
+let scene,camera,renderer,controls,earthMesh,cloudMesh,atmMesh,raycaster,mouse;
+let layerGroups={},layerVisible={space:true,human:true,internet:true,physical:true};
+let allNodes=[],allMeshes=[],connLines=null,scNodes=[],autoRot=true,hoverNd=null;
+const clock=new THREE.Clock();
+function init(){
+    const wrap=document.getElementById('sc-earth-canvas-wrap');
+    renderer=new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    renderer.setSize(wrap.clientWidth,wrap.clientHeight);
+    wrap.appendChild(renderer.domElement);
+    scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x00000a);
+    scene.fog=new THREE.FogExp2(0x00000a,0.016);
+    camera=new THREE.PerspectiveCamera(52,wrap.clientWidth/wrap.clientHeight,0.05,600);
+    camera.position.set(0,3,11);
+    controls=new OrbitControls(camera,renderer.domElement);
+    controls.enableDamping=true;controls.dampingFactor=0.06;controls.rotateSpeed=0.5;controls.zoomSpeed=0.8;
+    controls.minDistance=EARTH_R*1.3;controls.maxDistance=40;controls.autoRotate=true;controls.autoRotateSpeed=0.12;
+    raycaster=new THREE.Raycaster();mouse=new THREE.Vector2();
+    buildStars();buildEarth();
+    Object.keys(LAYER).forEach(k=>{layerGroups[k]=new THREE.Group();scene.add(layerGroups[k]);});
+    renderer.domElement.addEventListener('mousemove',onMouseMove);
+    renderer.domElement.addEventListener('click',onClick);
+    window.addEventListener('resize',onResize);
+    requestAnimationFrame(animate);
 }
-
-/* ─── Render graph: 3D if library available, else 2D D3 ── */
-function renderGraph() {
-    const rootId   = focusedNodeId || USER_NODE_ID;
-    const subGraph = buildSubGraph(rootId, currentDepth);
-
-    document.getElementById('sc-stat-nodes').textContent = subGraph.nodes.length;
-    document.getElementById('sc-stat-links').textContent = subGraph.links.length;
-
-    const wrapper = document.getElementById('sc-graph-wrapper');
-    const W = wrapper.clientWidth;
-    const H = wrapper.clientHeight || window.innerHeight - 140;
-
-    if (typeof ForceGraph3D !== 'undefined') {
-        render3D(subGraph, W, H);
-    } else {
-        render2DFallback(subGraph, W, H);
-    }
+function buildStars(){
+    const N=4000,pos=new Float32Array(N*3);
+    for(let i=0;i<N;i++){const phi=Math.acos(2*Math.random()-1),t=Math.random()*Math.PI*2,r=90+Math.random()*130;pos[i*3]=r*Math.sin(phi)*Math.cos(t);pos[i*3+1]=r*Math.sin(phi)*Math.sin(t);pos[i*3+2]=r*Math.cos(phi);}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    scene.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:0.11,sizeAttenuation:true,transparent:true,opacity:0.75})));
 }
-
-/* ─── 3D render using ForceGraph3D ────────────────────── */
-function render3D(subGraph, W, H) {
-    if (!graphInstance) {
-        graphInstance = ForceGraph3D()(graphEl)
-            .backgroundColor('#050510')
-            .nodeLabel(n => escHtml(n.username || n.did || n._id || ''))
-            .nodeColor(n => nodeColor(n))
-            .nodeVal(n => nodeSize(n))
-            .nodeResolution(16)
-            .linkColor(() => 'rgba(13,202,240,0.35)')
-            .linkWidth(0.4)
-            .linkOpacity(0.6)
-            .linkDirectionalArrowLength(3)
-            .linkDirectionalArrowRelPos(1)
-            .onNodeClick(onNodeClick)
-            .onNodeHover(onNodeHover)
-            .cooldownTicks(80);
+function buildEarth(){
+    const texW=1024,texH=512,cv=document.createElement('canvas');cv.width=texW;cv.height=texH;
+    const cx=cv.getContext('2d');
+    const grad=cx.createLinearGradient(0,0,0,texH);
+    grad.addColorStop(0,'#071532');grad.addColorStop(.45,'#0d2f6b');grad.addColorStop(.55,'#0d2f6b');grad.addColorStop(1,'#071532');
+    cx.fillStyle=grad;cx.fillRect(0,0,texW,texH);
+    function blob(x,y,w,h,col,a){
+        cx.save();cx.globalAlpha=a;cx.fillStyle=col;cx.beginPath();
+        cx.moveTo(x+w*.5,y);cx.bezierCurveTo(x+w*.92,y+h*.08,x+w,y+h*.42,x+w*.88,y+h*.72);
+        cx.bezierCurveTo(x+w*.72,y+h,x+w*.28,y+h*.96,x+w*.08,y+h*.74);
+        cx.bezierCurveTo(x-w*.04,y+h*.52,x+w*.04,y+h*.18,x+w*.5,y);
+        cx.closePath();cx.fill();cx.restore();
     }
-
-    graphInstance
-        .width(W)
-        .height(H)
-        .graphData({
-            nodes: subGraph.nodes.map(n => ({ id: n._id || n.did, ...n })),
-            links: subGraph.links.map(l => ({
-                source: typeof l.source === 'object' ? l.source.id : l.source,
-                target: typeof l.target === 'object' ? l.target.id : l.target
-            }))
-        });
-
-    graphInstance.onEngineStop(() => {
-        loadingEl.style.opacity = '0';
-        setTimeout(() => { loadingEl.style.display = 'none'; }, 400);
+    blob(165,68,105,215,'#2b6e3f',.85);blob(195,265,72,140,'#2b6e3f',.80);blob(158,155,44,88,'#8a6318',.70);
+    blob(470,62,82,108,'#2b6e3f',.80);blob(480,148,92,192,'#8a6318',.78);blob(495,318,72,84,'#2b6e3f',.72);
+    blob(575,44,215,155,'#2b6e3f',.82);blob(680,55,105,105,'#5a4830',.65);blob(595,175,118,82,'#8a6318',.72);
+    blob(718,288,94,72,'#8a6318',.76);blob(705,282,42,44,'#2b6e3f',.70);
+    cx.fillStyle='#c8e4f0';cx.globalAlpha=.72;cx.fillRect(0,0,texW,20);cx.fillRect(0,texH-22,texW,22);
+    blob(190,0,85,50,'#b0d8e8',.65);
+    cx.strokeStyle='rgba(80,160,255,0.07)';cx.lineWidth=.6;
+    for(let x=0;x<texW;x+=texW/12){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,texH);cx.stroke();}
+    for(let y=0;y<texH;y+=texH/6){cx.beginPath();cx.moveTo(0,y);cx.lineTo(texW,y);cx.stroke();}
+    cx.globalAlpha=.35;cx.fillStyle='#ffe090';
+    [[215,95],[490,75],[520,88],[600,76],[640,78],[488,158],[502,198],[218,268],[722,293]].forEach(([x,y])=>{cx.beginPath();cx.arc(x,y,3.5,0,Math.PI*2);cx.fill();});
+    cx.globalAlpha=1;
+    earthMesh=new THREE.Mesh(new THREE.SphereGeometry(EARTH_R,64,32),new THREE.MeshPhongMaterial({map:new THREE.CanvasTexture(cv),specular:new THREE.Color(0x1a4a8a),shininess:22,emissive:new THREE.Color(0x050a14),emissiveIntensity:0.35}));
+    scene.add(earthMesh);
+    const ccv=document.createElement('canvas');ccv.width=512;ccv.height=256;const ccx=ccv.getContext('2d');
+    for(let i=0;i<65;i++){ccx.globalAlpha=Math.random()*.28+.08;ccx.fillStyle='rgba(255,255,255,.55)';ccx.beginPath();ccx.ellipse(Math.random()*512,Math.random()*256,Math.random()*32+6,Math.random()*16+4,Math.random()*Math.PI,0,Math.PI*2);ccx.fill();}
+    cloudMesh=new THREE.Mesh(new THREE.SphereGeometry(EARTH_R*1.008,48,24),new THREE.MeshPhongMaterial({map:new THREE.CanvasTexture(ccv),transparent:true,opacity:0.38,depthWrite:false}));
+    scene.add(cloudMesh);
+    atmMesh=new THREE.Mesh(new THREE.SphereGeometry(EARTH_R*1.09,32,16),new THREE.ShaderMaterial({
+        vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+        fragmentShader:'varying vec3 vN;void main(){float i=pow(.72-dot(vN,vec3(0.,0.,1.)),3.2);gl_FragColor=vec4(.12,.50,1.,clamp(i*.9,0.,1.));}',
+        side:THREE.FrontSide,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}));
+    scene.add(atmMesh);
+    const sun=new THREE.DirectionalLight(0xfff0d8,1.9);sun.position.set(12,6,9);scene.add(sun);
+    scene.add(new THREE.AmbientLight(0x0a0a1c,.65));
+}
+function fibSphere(n,r,j=.06){
+    const phi=Math.PI*(3-Math.sqrt(5));
+    return Array.from({length:n},(_,i)=>{
+        const y=(1-(i/Math.max(n-1,1))*2)*r,rad=Math.sqrt(Math.max(0,r*r-y*y)),t=phi*i;
+        return new THREE.Vector3(Math.cos(t)*rad+(Math.random()-.5)*j*r,y+(Math.random()-.5)*j*r,Math.sin(t)*rad+(Math.random()-.5)*j*r);
     });
 }
-
-/* ─── 2D D3 fallback (when 3D library unavailable) ─────── */
-let d3Sim = null;
-function render2DFallback(subGraph, W, H) {
-    // Clear previous graph
-    d3.select(graphEl).selectAll('*').remove();
-
-    if (d3Sim) { d3Sim.stop(); d3Sim = null; }
-
-    const nodes = subGraph.nodes.map(n => ({ ...n, id: n._id || n.did }));
-    const links = subGraph.links.map(l => ({
-        source: typeof l.source === 'object' ? l.source.id : l.source,
-        target: typeof l.target === 'object' ? l.target.id : l.target
-    }));
-
-    const svg = d3.select(graphEl).append('svg')
-        .attr('width', W).attr('height', H)
-        .style('background', '#050510')
-        .style('display', 'block');
-
-    svg.append('defs').append('marker')
-        .attr('id', 'arr3d').attr('viewBox', '0 -4 8 8')
-        .attr('refX', 20).attr('refY', 0)
-        .attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto')
-        .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#0dcaf050');
-
-    const g = svg.append('g');
-    svg.call(d3.zoom().scaleExtent([0.1, 6])
-        .on('zoom', e => g.attr('transform', e.transform)));
-
-    const link = g.append('g').selectAll('line').data(links).join('line')
-        .attr('stroke', '#0dcaf050').attr('stroke-width', 1)
-        .attr('marker-end', 'url(#arr3d)');
-
-    const tooltip = document.getElementById('sc-3d-tooltip');
-    const node = g.append('g').selectAll('g').data(nodes).join('g')
-        .style('cursor', 'pointer')
-        .call(d3.drag()
-            .on('start', (e, d) => { if (!e.active) d3Sim.alphaTarget(.3).restart(); d.fx = d.x; d.fy = d.y; })
-            .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
-            .on('end',   (e, d) => { if (!e.active) d3Sim.alphaTarget(0); d.fx = null; d.fy = null; }))
-        .on('click', (e, d) => onNodeClick(d))
-        .on('mousemove', (e, d) => {
-            tooltip.style.display = 'block';
-            tooltip.style.left = (e.clientX + 14) + 'px';
-            tooltip.style.top  = (e.clientY - 8) + 'px';
-            tooltip.textContent = escHtml(d.username || d._id || '');
-        })
-        .on('mouseleave', () => { tooltip.style.display = 'none'; });
-
-    node.append('circle')
-        .attr('r', d => d.id === USER_NODE_ID ? 14 : (d._hop === 1 ? 11 : 8))
-        .attr('fill', d => nodeColor(d))
-        .attr('fill-opacity', .85)
-        .attr('stroke', d => nodeColor(d))
-        .attr('stroke-width', 1.5);
-
-    node.append('text')
-        .attr('dy', d => (d.id === USER_NODE_ID ? 14 : 8) + 12)
-        .attr('text-anchor', 'middle')
-        .attr('fill', d => nodeColor(d))
-        .attr('font-size', 9)
-        .text(d => { const n = d.username || d._id || ''; return n.length > 12 ? n.slice(0,11)+'…' : n; });
-
-    d3Sim = d3.forceSimulation(nodes)
-        .force('link',   d3.forceLink(links).id(d => d.id).distance(70))
-        .force('charge', d3.forceManyBody().strength(-180))
-        .force('center', d3.forceCenter(W/2, H/2))
-        .force('collide', d3.forceCollide(18))
-        .on('tick', () => {
-            link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-            node.attr('transform', d => `translate(${d.x},${d.y})`);
-        })
-        .on('end', () => {
-            loadingEl.style.opacity = '0';
-            setTimeout(() => { loadingEl.style.display = 'none'; }, 400);
-        });
+function makeNodeMesh(layer,color,size){
+    let geo;
+    switch(layer){case 'space':geo=new THREE.OctahedronGeometry(size,0);break;case 'internet':geo=new THREE.BoxGeometry(size,size,size);break;case 'physical':geo=new THREE.DodecahedronGeometry(size,0);break;default:geo=new THREE.SphereGeometry(size,10,5);break;}
+    const c=new THREE.Color(color);
+    const mesh=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({color:c,emissive:c.clone().multiplyScalar(LAYER[layer]?.emGain||.2),shininess:70,transparent:true,opacity:.9}));
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({color:c,transparent:true,opacity:.22,sizeAttenuation:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+    glow.scale.setScalar(size*10);mesh.add(glow);return mesh;
 }
-
-/* ─── Node colors ──────────────────────────────────────── */
-function nodeColor(n) {
-    const id = n._id || n.did || n.id;
-    if (id === USER_NODE_ID) return '#198754';
-    if (n.is_agent)          return '#ffc107';
-    if (n.type === 'agent')  return '#ffc107';
-    if (n.type === 'external') return '#6c757d';
-    return '#0dcaf0';
-}
-function nodeSize(n) {
-    const id = n._id || n.did || n.id;
-    if (id === USER_NODE_ID)   return 4;
-    if (n._hop === 1)          return 2.5;
-    if (n.is_agent)            return 2;
-    return 1.2;
-}
-
-/* ─── Node click → fractal exploration ─────────────────── */
-function onNodeClick(node) {
-    const id    = node._id || node.did || node.id;
-    const label = node.username || (id ? id.slice(0, 14) + '…' : 'Node');
-
-    // Update exploration path
-    const existingIdx = explorationPath.findIndex(p => p.id === id);
-    if (existingIdx >= 0) {
-        explorationPath = explorationPath.slice(0, existingIdx + 1);
-    } else {
-        explorationPath.push({ id, label });
-    }
-    renderBreadcrumb();
-
-    // Focus camera
-    if (graphInstance) {
-        graphInstance.cameraPosition(
-            { x: node.x, y: node.y, z: (node.z || 0) + 80 },
-            node,
-            800
-        );
-    }
-
-    // Show detail
-    showNodeDetail(node);
-}
-
-/* ─── Node hover tooltip ───────────────────────────────── */
-const tooltip = document.getElementById('sc-3d-tooltip');
-function onNodeHover(node) {
-    if (!node) { tooltip.style.display = 'none'; return; }
-    tooltip.textContent = node.username || node._id || '';
-    tooltip.style.display = 'block';
-}
-document.addEventListener('mousemove', e => {
-    if (tooltip.style.display === 'block') {
-        tooltip.style.left = (e.clientX + 14) + 'px';
-        tooltip.style.top  = (e.clientY - 8) + 'px';
-    }
-});
-
-/* ─── Show node detail in sidebar ──────────────────────── */
-function showNodeDetail(node) {
-    const id = node._id || node.did || node.id;
-    const isSelf = id === USER_NODE_ID;
-    const isAgent = !!(node.is_agent || node.type === 'agent');
-    const isExt   = node.type === 'external';
-
-    const avatarEl = document.getElementById('sc-nd-avatar');
-    avatarEl.style.background = isSelf ? 'rgba(25,135,84,0.2)' : isAgent ? 'rgba(255,193,7,0.15)' : 'rgba(13,202,240,0.1)';
-    avatarEl.style.border = `1px solid ${isSelf ? '#19875460' : isAgent ? '#ffc10740' : '#0dcaf040'}`;
-    avatarEl.innerHTML = `<i class="bi ${isAgent ? 'bi-robot text-warning' : isSelf ? 'bi-person-fill text-success' : 'bi-person-circle text-info'}"></i>`;
-
-    document.getElementById('sc-nd-name').textContent = node.username || node.display_name || id.slice(0, 20);
-    document.getElementById('sc-nd-did').textContent  = id;
-    document.getElementById('sc-nd-badges').innerHTML =
-        (isSelf  ? '<span class="badge bg-success me-1">You</span>' : '') +
-        (isAgent ? '<span class="badge bg-warning text-dark me-1">AI Agent</span>' : '') +
-        (isExt   ? '<span class="badge bg-secondary me-1">External</span>' : '') +
-        (!isSelf && !isAgent && !isExt ? '<span class="badge bg-info text-dark">SC Node</span>' : '');
-
-    const meta = node.metadata || {};
-    const metaHtml = Object.entries(meta)
-        .filter(([k]) => !['external_contacts','social_links'].includes(k))
-        .slice(0, 5)
-        .map(([k,v]) => `<div class="d-flex gap-2"><span class="text-secondary">${escHtml(k)}:</span><span class="text-light">${escHtml(String(v).slice(0,40))}</span></div>`)
-        .join('');
-    document.getElementById('sc-nd-meta').innerHTML = metaHtml
-        ? `<div style="font-size:.72rem;" class="d-flex flex-column gap-1">${metaHtml}</div>` : '';
-
-    document.getElementById('sc-nd-content').classList.remove('d-none');
-
-    // Explore button: focus this node and re-render sub-graph
-    document.getElementById('sc-nd-explore').onclick = () => {
-        focusedNodeId = id;
-        loadingEl.style.opacity = '1';
-        loadingEl.style.display = 'flex';
-        renderGraph();
-        renderBreadcrumb();
-    };
-    // Focus camera
-    document.getElementById('sc-nd-focus').onclick = () => {
-        if (graphInstance) {
-            graphInstance.cameraPosition({ x: node.x, y: node.y, z: (node.z||0)+80 }, node, 600);
-        }
-    };
-}
-
-/* ─── Breadcrumb ───────────────────────────────────────── */
-function renderBreadcrumb() {
-    const content = document.getElementById('sc-path-content');
-    content.innerHTML = explorationPath.map((p, i) =>
-        `<span class="sc-path-crumb" data-idx="${i}">${escHtml(p.label)}</span>` +
-        (i < explorationPath.length - 1 ? '<span class="sc-path-sep">/</span>' : '')
-    ).join('');
-    content.querySelectorAll('[data-idx]').forEach(el => {
-        el.addEventListener('click', () => {
-            const idx = parseInt(el.dataset.idx, 10);
-            explorationPath = explorationPath.slice(0, idx + 1);
-            focusedNodeId = explorationPath[explorationPath.length - 1].id;
-            loadingEl.style.opacity = '1';
-            loadingEl.style.display = 'flex';
-            renderGraph();
-            renderBreadcrumb();
-        });
+function buildAllNodes(scData){
+    allNodes=[];allMeshes=[];Object.values(layerGroups).forEach(g=>{while(g.children.length)g.remove(g.children[0]);});
+    if(connLines){scene.remove(connLines);connLines=null;}
+    const spaceList=[
+        {icon:'\u{1F6F0}',name:'GPS Constellation',sub:'Navigation'},
+        {icon:'\u{1F4E1}',name:'Starlink Swarm',sub:'Broadband'},
+        {icon:'\u{1F6F8}',name:'ISS',sub:'Space Station'},
+        {icon:'\u{1F52D}',name:'James Webb Telescope',sub:'Science'},
+        {icon:'\u{1F4E1}',name:'Intelsat-39',sub:'Comms'},
+        {icon:'\u{1F6F0}',name:'GOES-18 Weather Sat',sub:'Meteorology'},
+        {icon:'\u{1F4E1}',name:'Iridium Next',sub:'IoT/Mobile'},
+        {icon:'\u{1F6F8}',name:'Tiangong Station',sub:'Space Station'},
+        {icon:'\u{1F6F0}',name:'OneWeb Cluster',sub:'Broadband'},
+        {icon:'\u{1F52D}',name:'Hubble Telescope',sub:'Science'},
+        {icon:'\u{1F4E1}',name:'DirecTV Satellite',sub:'Broadcasting'},
+        {icon:'\u{1F6F0}',name:'Landsat 9',sub:'Earth Obs.'},
+        {icon:'\u{1F4E1}',name:'Inmarsat Node',sub:'Maritime'},
+        {icon:'\u{1F6F0}',name:'NOAA-21',sub:'Weather'},
+        {icon:'\u{1F6F0}',name:'SES Satellite',sub:'Broadcasting'},
+        {icon:'\u{1F6F0}',name:'Sentinel-2A',sub:'Earth Obs.'},
+        {icon:'\u{1F4E1}',name:'Military Comsat',sub:'Defense'},
+        {icon:'\u{1F6F0}',name:'Aqua Satellite',sub:'Science'},
+    ];
+    const sPos=fibSphere(spaceList.length,LAYER.space.r,.14);
+    spaceList.forEach((s,i)=>{const nd={id:'space_'+i,layer:'space',type:'satellite',icon:s.icon,name:s.name,sub:s.sub,pos:sPos[i].clone()};const m=makeNodeMesh('space',LAYER.space.color,LAYER.space.nodeSize*1.3);m.position.copy(nd.pos);m.userData=nd;layerGroups.space.add(m);allNodes.push(nd);allMeshes.push({mesh:m,nd});});
+    const iT=['BGP Router','CDN Node','Internet Exchange','Fiber Hub','DNS Server','Edge Node','Core Switch','Peering Point','Cloud Node','Cache Server','Load Balancer','API Gateway','SDN Controller','Network Relay','Anycast Node'];
+    const INET_N=185,iPos=fibSphere(INET_N,LAYER.internet.r,.07);
+    for(let i=0;i<INET_N;i++){const t=iT[i%iT.length];const nd={id:'inet_'+i,layer:'internet',type:'infrastructure',icon:'\u{1F517}',name:t+' '+(i+1),sub:t,pos:iPos[i].clone()};const m=makeNodeMesh('internet',LAYER.internet.color,LAYER.internet.nodeSize);m.position.copy(nd.pos);m.userData=nd;layerGroups.internet.add(m);allNodes.push(nd);allMeshes.push({mesh:m,nd});}
+    const physList=[
+        {icon:'\u{1F3E2}',name:'AWS Data Center',sub:'Cloud'},{icon:'\u{1F3E2}',name:'Azure Data Center',sub:'Cloud'},
+        {icon:'\u{1F3E2}',name:'Google Cloud DC',sub:'Cloud'},{icon:'\u{1F3E2}',name:'Meta Data Center',sub:'Cloud'},
+        {icon:'\u{1F3ED}',name:'Smart Factory Alpha',sub:'Industry 4.0'},{icon:'\u{1F3ED}',name:'Smart Factory Beta',sub:'Industry 4.0'},
+        {icon:'\u{1F306}',name:'New York IoT Hub',sub:'Smart City'},{icon:'\u{1F306}',name:'London IoT Hub',sub:'Smart City'},
+        {icon:'\u{1F306}',name:'Tokyo IoT Hub',sub:'Smart City'},{icon:'\u{1F306}',name:'Shanghai IoT Hub',sub:'Smart City'},
+        {icon:'\u{1F306}',name:'Mumbai IoT Hub',sub:'Smart City'},{icon:'\u{1F306}',name:'São Paulo IoT Hub',sub:'Smart City'},
+        {icon:'\u{1F916}',name:'Industrial Robot Fleet',sub:'Automation'},{icon:'\u{1F916}',name:'Warehouse Robots',sub:'Logistics'},
+        {icon:'\u{1F697}',name:'Connected Vehicle Hub',sub:'Transport IoT'},{icon:'\u{1F682}',name:'Rail IoT Network',sub:'Transport'},
+        {icon:'\u2708',name:'Airport IoT Grid',sub:'Transport'},{icon:'\u{1F3E5}',name:'Smart Hospital Network',sub:'Healthcare IoT'},
+        {icon:'\u26A1',name:'Power Grid Node',sub:'Energy Grid'},{icon:'\u26A1',name:'Renewable Energy Hub',sub:'Energy'},
+        {icon:'\u{1F331}',name:'Smart Farm Network',sub:'AgriTech'},{icon:'\u{1F30A}',name:'Ocean Sensor Array',sub:'Environmental'},
+        {icon:'\u{1F30D}',name:'Weather Station Net',sub:'Environmental'},{icon:'\u{1F3D7}',name:'Construction AI Hub',sub:'Heavy Machinery'},
+        {icon:'\u{1F4F1}',name:'IoT Gateway Cluster',sub:'Smart Devices'},{icon:'\u{1F3E0}',name:'Smart Home Hubs',sub:'Home Automation'},
+        {icon:'\u{1F681}',name:'Drone Fleet Hub',sub:'Unmanned Systems'},{icon:'\u{1F6E2}',name:'Industrial Plant',sub:'Resource'},
+        {icon:'\u{1F4E1}',name:'Ground Station Net',sub:'Communication'},{icon:'\u{1F3E6}',name:'Financial Network Hub',sub:'FinTech'},
+    ];
+    const pPos=fibSphere(physList.length,LAYER.physical.r,.12);
+    physList.forEach((p,i)=>{const nd={id:'phys_'+i,layer:'physical',type:'physical',icon:p.icon,name:p.name,sub:p.sub,pos:pPos[i].clone()};const m=makeNodeMesh('physical',LAYER.physical.color,LAYER.physical.nodeSize*1.25);m.position.copy(nd.pos);m.userData=nd;layerGroups.physical.add(m);allNodes.push(nd);allMeshes.push({mesh:m,nd});});
+    const humanR=LAYER.human.r,toPlace=scData.length?scData:[{did:USER_DID,username:USERNAME||'You',is_agent:false,metadata:{}}];
+    const hPos=fibSphere(toPlace.length,humanR,.20);
+    toPlace.forEach((n,i)=>{
+        const isSelf=n.did===USER_DID,isAgent=!!n.is_agent,col=isSelf?SELF_COL:(isAgent?AI_COL:LAYER.human.color);
+        const nd={id:n.did,layer:'human',type:isSelf?'self':(isAgent?'ai':'human'),icon:isSelf?'\u{1F7E3}':(isAgent?'\u{1F916}':'\u{1F464}'),name:n.username||n.did.slice(-10),sub:isAgent?'AI Agent':'SC User',did:n.did,metadata:n.metadata||{},pos:(hPos[i]||new THREE.Vector3(0,humanR,0)).clone()};
+        const sz=LAYER.human.nodeSize*(isSelf?1.9:isAgent?1.5:1.15);const m=makeNodeMesh('human',col,sz);m.position.copy(nd.pos);m.userData=nd;layerGroups.human.add(m);allNodes.push(nd);allMeshes.push({mesh:m,nd});
     });
+    buildConnections();updateStats();renderNodesList();
 }
-
-/* ─── Nodes list in sidebar ────────────────────────────── */
-function renderNodesList() {
-    const el = document.getElementById('sc-nodes-list');
-    document.getElementById('sc-nodes-count-badge').textContent = rawNodes.length;
-    if (!rawNodes.length) { el.innerHTML = '<div class="text-secondary small">No nodes loaded.</div>'; return; }
-
-    el.innerHTML = rawNodes.slice(0, 60).map(n => {
-        const id = n.did || n.id;
-        const isSelf  = id === USER_NODE_ID;
-        const isAgent = !!(n.is_agent);
-        const color   = isSelf ? '#198754' : isAgent ? '#ffc107' : '#0dcaf0';
-        return `<div class="sc-node-list-item d-flex align-items-center gap-2 py-1 px-1 rounded"
-                     style="cursor:pointer;border-bottom:1px solid rgba(255,255,255,.03);"
-                     data-did="${escHtml(id)}">
-            <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
-            <span class="text-light text-truncate">${escHtml(n.username || n.display_name || id.slice(0,14))}</span>
-            ${isSelf ? '<span class="badge bg-success ms-auto" style="font-size:.6rem;">You</span>' : ''}
-            ${isAgent ? '<span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">Agent</span>' : ''}
-        </div>`;
-    }).join('') + (rawNodes.length > 60 ? `<div class="text-secondary mt-1" style="font-size:.7rem;">+ ${rawNodes.length - 60} more…</div>` : '');
-
-    el.querySelectorAll('[data-did]').forEach(item => {
-        item.addEventListener('click', () => {
-            const did = item.dataset.did;
-            const node = rawNodes.find(n => (n.did || n.id) === did);
-            if (node && graphInstance) {
-                const gNode = graphInstance.graphData().nodes.find(n => n.id === did);
-                if (gNode) {
-                    graphInstance.cameraPosition({ x: gNode.x, y: gNode.y, z: (gNode.z||0)+80 }, gNode, 800);
-                    showNodeDetail({ ...node, _id: did });
-                }
-            }
-        });
-    });
+function buildConnections(){
+    const segs=[];
+    function nearLinks(lk,mP,mD){const nodes=allNodes.filter(n=>n.layer===lk);nodes.forEach(a=>{nodes.map(b=>({b,d:a.pos.distanceTo(b.pos)})).filter(({b,d})=>b!==a&&d<mD).sort((x,y)=>x.d-y.d).slice(0,mP).forEach(({b})=>segs.push(a.pos.x,a.pos.y,a.pos.z,b.pos.x,b.pos.y,b.pos.z));});}
+    nearLinks('physical',3,2.8);nearLinks('internet',6,1.9);nearLinks('space',2,5.5);
+    const hNd=allNodes.filter(n=>n.layer==='human');
+    hNd.forEach((a,i)=>{hNd.slice(i+1).filter(()=>Math.random()<.3).slice(0,3).forEach(b=>segs.push(a.pos.x,a.pos.y,a.pos.z,b.pos.x,b.pos.y,b.pos.z));});
+    const pNd=allNodes.filter(n=>n.layer==='physical'),iNd=allNodes.filter(n=>n.layer==='internet');
+    pNd.forEach(p=>{iNd.filter(()=>Math.random()<.11).slice(0,2).forEach(q=>segs.push(p.pos.x,p.pos.y,p.pos.z,q.pos.x,q.pos.y,q.pos.z));});
+    iNd.forEach(p=>{hNd.filter(()=>Math.random()<.055).slice(0,2).forEach(q=>segs.push(p.pos.x,p.pos.y,p.pos.z,q.pos.x,q.pos.y,q.pos.z));});
+    allNodes.filter(n=>n.layer==='space').forEach(s=>{pNd.filter(()=>Math.random()<.18).slice(0,2).forEach(p=>segs.push(s.pos.x,s.pos.y,s.pos.z,p.pos.x,p.pos.y,p.pos.z));});
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(segs,3));
+    connLines=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x0dcaf0,transparent:true,opacity:.10,blending:THREE.AdditiveBlending,depthWrite:false}));
+    scene.add(connLines);document.getElementById('stat-links').textContent=Math.round(segs.length/6);
 }
-
-/* ─── Search ────────────────────────────────────────────── */
-document.getElementById('sc-search').addEventListener('input', function() {
-    const q = this.value.toLowerCase().trim();
-    const res = document.getElementById('sc-search-results');
-    if (!q) { res.innerHTML = ''; return; }
-    const matches = rawNodes.filter(n =>
-        (n.username || '').toLowerCase().includes(q) ||
-        (n.did || '').toLowerCase().includes(q)
-    ).slice(0, 8);
-    if (!matches.length) { res.innerHTML = '<div class="text-secondary small">No results.</div>'; return; }
-    res.innerHTML = matches.map(n => {
-        const id = n.did || n.id;
-        return `<div class="d-flex align-items-center gap-2 py-1 px-1 rounded text-light small"
-                     style="cursor:pointer;border-bottom:1px solid rgba(255,255,255,.03);"
-                     data-did="${escHtml(id)}">
-            <i class="bi bi-circle-fill" style="font-size:.4rem;color:#0dcaf0;"></i>
-            ${escHtml(n.username || id.slice(0,20))}
-        </div>`;
-    }).join('');
-    res.querySelectorAll('[data-did]').forEach(item => {
-        item.addEventListener('click', () => {
-            const did = item.dataset.did;
-            const node = rawNodes.find(n => (n.did || n.id) === did);
-            if (node && graphInstance) {
-                const gNode = graphInstance.graphData().nodes.find(n => n.id === did);
-                if (gNode) graphInstance.cameraPosition({ x: gNode.x, y: gNode.y, z: (gNode.z||0)+80 }, gNode, 800);
-            }
-        });
-    });
-});
-
-/* ─── Reset view ────────────────────────────────────────── */
-document.getElementById('btn-reset-view').addEventListener('click', () => {
-    focusedNodeId   = null;
-    explorationPath = [];
-    document.getElementById('sc-path-content').innerHTML = '<span class="sc-path-crumb">Root</span>';
-    loadingEl.style.opacity = '1';
-    loadingEl.style.display = 'flex';
-    renderGraph();
-});
-
-/* ─── Refresh ───────────────────────────────────────────── */
-document.getElementById('btn-refresh').addEventListener('click', () => { loadData(); });
-
-/* ─── Responsive resize ─────────────────────────────────── */
-window.addEventListener('resize', () => {
-    const w = document.getElementById('sc-graph-wrapper').clientWidth;
-    const h = document.getElementById('sc-graph-wrapper').clientHeight;
-    if (graphInstance && typeof graphInstance.width === 'function') {
-        graphInstance.width(w).height(h);
-    } else if (d3Sim) {
-        renderGraph();  // re-render 2D on resize
-    }
-});
-
-/* ─── Utility ───────────────────────────────────────────── */
-function escHtml(str) {
-    return String(str)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function updateStats(){
+    document.getElementById('stat-total').textContent=allNodes.length;document.getElementById('stat-sc').textContent=allNodes.filter(n=>n.layer==='human').length;
+    ['space','internet','human','physical'].forEach(l=>{const el=document.getElementById('lc-'+l);if(el)el.textContent=allNodes.filter(n=>n.layer===l).length;});
 }
-
-/* ─── Init ──────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
-    // Seed breadcrumb with "You" root
-    explorationPath = [{ id: USER_NODE_ID, label: USERNAME || 'You' }];
-    renderBreadcrumb();
-    loadData();
+function renderNodesList(){
+    const hNd=allNodes.filter(n=>n.layer==='human');document.getElementById('sc-node-badge').textContent=hNd.length;
+    const list=document.getElementById('sc-nodes-list');
+    list.innerHTML=hNd.map(n=>{const col=n.type==='self'?'#a78bfa':n.type==='ai'?'#ffc107':'#25c17a';return '<div class="sc-node-item" data-nid="'+escH(n.id)+'"><span class="sc-node-dot" style="background:'+col+';box-shadow:0 0 4px '+col+';"></span><span class="text-light text-truncate" style="flex:1;max-width:155px;">'+n.icon+' '+escH(n.name)+'</span><span class="text-secondary" style="font-size:.64rem;">'+escH(n.sub)+'</span></div>';}).join('');
+    list.querySelectorAll('[data-nid]').forEach(el=>{el.addEventListener('click',()=>{const nd=allNodes.find(n=>n.id===el.dataset.nid);if(nd)focusNode(nd);});});
+}
+function onMouseMove(e){
+    const rect=renderer.domElement.getBoundingClientRect();
+    mouse.x=((e.clientX-rect.left)/rect.width)*2-1;mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(mouse,camera);
+    const hits=raycaster.intersectObjects(allMeshes.filter(({nd})=>layerVisible[nd.layer]).map(({mesh})=>mesh),true);
+    const tt=document.getElementById('sc-earth-tooltip');
+    if(hits.length){let obj=hits[0].object;while(obj&&!obj.userData.id&&obj.parent)obj=obj.parent;
+        if(obj&&obj.userData.id){hoverNd=obj.userData;const nd=hoverNd;
+            tt.innerHTML='<div style="font-weight:700;">'+nd.icon+' '+escH(nd.name)+'</div><div style="color:#6c757d;font-size:.7rem;">'+escH(nd.sub||nd.layer)+' &middot; '+escH(nd.layer)+'</div>'+(nd.did?'<div style="color:#ffc107;font-size:.63rem;margin-top:2px;">'+escH(nd.did.slice(0,22))+'&hellip;</div>':'');
+            tt.style.display='block';tt.style.left=(e.clientX+14)+'px';tt.style.top=(e.clientY-8)+'px';renderer.domElement.style.cursor='pointer';}}
+    else{hoverNd=null;tt.style.display='none';renderer.domElement.style.cursor='default';}
+}
+function onClick(){if(hoverNd)showNodeDetail(hoverNd);}
+function showNodeDetail(nd){
+    document.getElementById('sc-nd-placeholder').classList.add('d-none');document.getElementById('sc-nd-content').classList.remove('d-none');
+    document.getElementById('sc-nd-icon').textContent=nd.icon||'\u25CF';document.getElementById('sc-nd-name').textContent=nd.name||nd.id;document.getElementById('sc-nd-did').textContent=nd.did||nd.id||'';
+    const lKey=nd.type==='ai'?'ai':nd.type==='self'?'self':nd.layer;const lLabel={space:'Space',internet:'Internet',human:'Human',physical:'Physical',ai:'AI Agent',self:'You'};
+    document.getElementById('sc-nd-badges').innerHTML='<span class="lbadge '+lKey+'">'+(lLabel[lKey]||nd.layer)+'</span>'+(nd.type==='self'?'<span class="lbadge self" style="margin-left:3px;">Active User</span>':'');
+    const rows=Object.entries(nd.metadata||{}).filter(([k])=>k!=='external_contacts');
+    document.getElementById('sc-nd-meta').innerHTML=rows.length?'<table style="width:100%;font-size:.7rem;">'+rows.map(([k,v])=>'<tr><td class="text-secondary pe-2">'+escH(k)+'</td><td class="text-light">'+escH(String(v))+'</td></tr>').join('')+'</table>':'';
+    document.getElementById('sc-nd-focus').onclick=()=>focusNode(nd);document.getElementById('sc-nd-chat').onclick=()=>prefillChat(nd);
+}
+function focusNode(nd){if(!nd.pos)return;animateCam(nd.pos.clone().normalize().multiplyScalar(nd.pos.length()*2.4),nd.pos);}
+function jumpToLayer(key){const r=LAYER[key]?.r||5;animateCam(new THREE.Vector3(r*1.8,r*.7,r*1.5),new THREE.Vector3(0,0,0));}
+function animateCam(tPos,tLook){
+    const sPos=camera.position.clone(),sLook=controls.target.clone(),dur=900,t0=performance.now();
+    controls.autoRotate=false;
+    (function step(now){const t=Math.min((now-t0)/dur,1),e=t<.5?2*t*t:-1+(4-2*t)*t;camera.position.lerpVectors(sPos,tPos,e);controls.target.lerpVectors(sLook,tLook,e);controls.update();if(t<1)requestAnimationFrame(step);else if(autoRot)controls.autoRotate=true;})(t0);
+}
+document.getElementById('sc-earth-search').addEventListener('input',function(){
+    const q=this.value.trim().toLowerCase(),res=document.getElementById('sc-search-results');
+    if(!q){res.innerHTML='';return;}
+    const hits=allNodes.filter(n=>n.name.toLowerCase().includes(q)||(n.sub||'').toLowerCase().includes(q)||(n.did||'').toLowerCase().includes(q)||n.layer.toLowerCase().includes(q)).slice(0,14);
+    const COLS={space:'#c0d4ff',internet:'#0dcaf0',physical:'#ff6b35',human:'#25c17a',ai:'#ffc107',self:'#a78bfa'};
+    res.innerHTML=hits.map(n=>{const c=n.type==='ai'?COLS.ai:n.type==='self'?COLS.self:COLS[n.layer]||'#adb5bd';return '<div class="sc-node-item" data-sid="'+escH(n.id)+'"><span class="sc-node-dot" style="background:'+c+';box-shadow:0 0 3px '+c+';"></span><div style="flex:1;min-width:0;"><div class="text-light text-truncate">'+n.icon+' '+escH(n.name)+'</div><div class="text-secondary" style="font-size:.65rem;">'+escH(n.layer)+' &middot; '+escH(n.sub||'')+'</div></div></div>';}).join('');
+    res.querySelectorAll('[data-sid]').forEach(el=>{el.addEventListener('click',()=>{const nd=allNodes.find(n=>n.id===el.dataset.sid);if(nd){showNodeDetail(nd);focusNode(nd);}});});
 });
+document.querySelectorAll('.sc-layer-btn').forEach(btn=>{btn.addEventListener('click',()=>{const l=btn.dataset.layer;layerVisible[l]=!layerVisible[l];btn.classList.toggle('active',layerVisible[l]);layerGroups[l].visible=layerVisible[l];});});
+document.getElementById('btn-space').addEventListener('click',()=>jumpToLayer('space'));
+document.getElementById('btn-human').addEventListener('click',()=>jumpToLayer('human'));
+document.getElementById('btn-internet').addEventListener('click',()=>jumpToLayer('internet'));
+document.getElementById('btn-physical').addEventListener('click',()=>jumpToLayer('physical'));
+document.getElementById('btn-reset').addEventListener('click',()=>{autoRot=true;controls.autoRotate=true;animateCam(new THREE.Vector3(0,3,11),new THREE.Vector3(0,0,0));});
+document.getElementById('btn-autorot').addEventListener('click',function(){autoRot=!autoRot;controls.autoRotate=autoRot;this.classList.toggle('active',autoRot);});
+document.getElementById('btn-refresh').addEventListener('click',loadData);
+const sbBtn=document.getElementById('sc-sb-toggle');
+sbBtn.addEventListener('click',()=>{const col=document.getElementById('sc-earth-sidebar').classList.toggle('collapsed');sbBtn.classList.toggle('collapsed',col);document.getElementById('sc-sb-icon').className=col?'bi bi-layout-sidebar':'bi bi-layout-sidebar-reverse';sbBtn.style.right=col?'0':'280px';setTimeout(()=>{const w=document.getElementById('sc-earth-canvas-wrap');renderer.setSize(w.clientWidth,w.clientHeight);camera.aspect=w.clientWidth/w.clientHeight;camera.updateProjectionMatrix();},280);});
+function prefillChat(nd){const inp=document.getElementById('sc-chat-input');if(!inp)return;inp.value='Tell me about '+nd.name+' ('+( nd.sub||nd.layer)+')';inp.focus();const panel=document.getElementById('sc-chat-panel');if(panel&&!panel.classList.contains('open')&&typeof scToggleChat==='function')scToggleChat();}
+function handleVizCommand(msg){const m=msg.toLowerCase();if(m.match(/\bsatellite|space\s*layer|space\s*asset/)){jumpToLayer('space');return true;}if(m.match(/\bphysical|building|factory|data\s*center|robot|smart\s*city/)){jumpToLayer('physical');return true;}if(m.match(/\binternet|infrastructure|router|cdn|fiber/)){jumpToLayer('internet');return true;}if(m.match(/\bhuman|user|agent|people/)){jumpToLayer('human');return true;}if(m.match(/\breset|overview|full\s*view/)){animateCam(new THREE.Vector3(0,3,11),new THREE.Vector3(0,0,0));return true;}const fm=m.match(/(?:find|locate|zoom\s+to|show)\s+(.+)/);if(fm){const q=fm[1].trim();const nd=allNodes.find(n=>n.name.toLowerCase().includes(q)||(n.sub||'').toLowerCase().includes(q)||(n.did||'').toLowerCase().includes(q));if(nd){focusNode(nd);showNodeDetail(nd);return true;}}return false;}
+window._scEarthVizCommand=handleVizCommand;
+document.addEventListener('DOMContentLoaded',()=>{const inp=document.getElementById('sc-chat-input');if(!inp)return;inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&inp.value.trim())handleVizCommand(inp.value.trim());});document.getElementById('sc-chat-send-btn')?.addEventListener('click',()=>{if(inp.value.trim())handleVizCommand(inp.value.trim());},{capture:true});});
+async function loadData(){
+    document.getElementById('sc-refresh-icon').classList.add('spin');
+    try{
+        const [profRes,mapRes]=await Promise.all([fetch('/api/social/profiles'),fetch('/api/social/map')]);
+        let profiles=[];if(profRes.ok){const d=await profRes.json();profiles=d.profiles||[];}
+        const adjMap={};if(mapRes.ok){const d=await mapRes.json();Object.assign(adjMap,d.map||{});}
+        const profByDid={};profiles.forEach(p=>{profByDid[p.did]=p;});
+        const nodeSet=new Set(Object.keys(adjMap));nodeSet.add(USER_DID);
+        scNodes=[...nodeSet].map(did=>{const p=profByDid[did]||{};return {did,username:p.display_name||p.username||did.slice(-10),is_agent:p.device_type==='agent',metadata:p.metadata||{}};});
+        buildAllNodes(scNodes);
+    }catch(e){console.warn('[EarthNet] load error:',e);buildAllNodes([]);}
+    finally{document.getElementById('sc-refresh-icon').classList.remove('spin');const ld=document.getElementById('sc-earth-loading');ld.classList.add('hidden');setTimeout(()=>{ld.style.display='none';},600);}
+}
+function onResize(){const wrap=document.getElementById('sc-earth-canvas-wrap');renderer.setSize(wrap.clientWidth,wrap.clientHeight);camera.aspect=wrap.clientWidth/wrap.clientHeight;camera.updateProjectionMatrix();}
+function animate(){requestAnimationFrame(animate);const t=clock.getElapsedTime();if(earthMesh)earthMesh.rotation.y=t*.04;if(cloudMesh)cloudMesh.rotation.y=t*.048;if(atmMesh)atmMesh.rotation.y=t*.032;if(layerGroups.space)layerGroups.space.rotation.y=t*.008;if(layerGroups.internet)layerGroups.internet.rotation.y=-t*.014;if(layerGroups.human)layerGroups.human.rotation.y=t*.010;if(layerGroups.physical)layerGroups.physical.rotation.y=-t*.006;allMeshes.forEach(({mesh},i)=>{mesh.scale.setScalar(1+Math.sin(t*1.6+i*.38)*.065);});controls.update();renderer.render(scene,camera);}
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+init();loadData();
 </script>
 {% endblock %}

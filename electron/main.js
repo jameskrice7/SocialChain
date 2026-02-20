@@ -206,7 +206,7 @@ function createMainWindow() {
         { label: 'Dashboard',          accelerator: 'CmdOrCtrl+1', click: () => navigateTo('/dashboard') },
         { label: 'Profile',            accelerator: 'CmdOrCtrl+2', click: () => navigateTo('/profile') },
         { label: 'Network Map',        accelerator: 'CmdOrCtrl+3', click: () => navigateTo('/network') },
-        { label: 'My Network (3D)',    accelerator: 'CmdOrCtrl+4', click: () => navigateTo('/my-network') },
+        { label: 'Earth Network',       accelerator: 'CmdOrCtrl+4', click: () => navigateTo('/my-network') },
         { label: 'Network Workbench',  accelerator: 'CmdOrCtrl+5', click: () => navigateTo('/ide') },
         { type: 'separator' },
         {
