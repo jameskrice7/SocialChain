@@ -2,7 +2,7 @@
 {% block title %}Register - SocialChain{% endblock %}
 {% block content %}
 <div class="row justify-content-center mt-4">
-    <div class="col-md-5 col-lg-4">
+    <div class="col-md-6 col-lg-5">
 
         <!-- Hexagonal graphic -->
         <div class="text-center mb-3">
@@ -53,9 +53,19 @@
                         <i class="bi bi-person"></i> Identity
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-secondary small">Username</label>
+                        <label class="form-label text-secondary small">Username <span class="text-danger">*</span></label>
                         <input type="text" class="form-control bg-dark text-light border-secondary"
                                name="username" required autofocus autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Display Name</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary"
+                               name="display_name" autocomplete="name" placeholder="How others see you (defaults to username)">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Bio <span class="text-secondary" style="font-size:0.68rem;">(max 280 chars)</span></label>
+                        <textarea class="form-control bg-dark text-light border-secondary" name="bio"
+                                  rows="2" maxlength="280" placeholder="Tell the network who you are…"></textarea>
                     </div>
 
                     <hr class="border-secondary my-3">
@@ -79,14 +89,55 @@
                         <i class="bi bi-shield-lock"></i> Security
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-secondary small">Password</label>
+                        <label class="form-label text-secondary small">Password <span class="text-danger">*</span></label>
                         <input type="password" class="form-control bg-dark text-light border-secondary"
                                name="password" required autocomplete="new-password">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-secondary small">Confirm Password</label>
+                        <label class="form-label text-secondary small">Confirm Password <span class="text-danger">*</span></label>
                         <input type="password" class="form-control bg-dark text-light border-secondary"
                                name="confirm_password" required autocomplete="new-password">
+                    </div>
+
+                    <hr class="border-secondary my-3">
+
+                    <!-- Social links section (optional) -->
+                    <div class="mb-2 d-flex align-items-center justify-content-between"
+                         style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#reg-social-section"
+                         aria-expanded="false">
+                        <span class="text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
+                            <i class="bi bi-share"></i> Social Networks <span class="text-secondary">(optional)</span>
+                        </span>
+                        <i class="bi bi-chevron-down text-secondary" style="font-size:0.75rem;" id="reg-social-chevron"></i>
+                    </div>
+                    <div class="collapse" id="reg-social-section">
+                        <div class="row g-2 mb-3">
+                            <div class="col-12">
+                                <label class="form-label text-secondary small"><i class="bi bi-facebook" style="color:#1877f2;"></i> Facebook</label>
+                                <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       name="sl_facebook" placeholder="https://facebook.com/yourprofile">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-secondary small"><i class="bi bi-linkedin" style="color:#0a66c2;"></i> LinkedIn</label>
+                                <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       name="sl_linkedin" placeholder="https://linkedin.com/in/yourprofile">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-secondary small"><i class="bi bi-instagram" style="color:#e1306c;"></i> Instagram</label>
+                                <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       name="sl_instagram" placeholder="https://instagram.com/yourprofile">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-secondary small"><i class="bi bi-youtube" style="color:#ff0000;"></i> YouTube</label>
+                                <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       name="sl_youtube" placeholder="https://youtube.com/@yourchannel">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-secondary small"><i class="bi bi-twitter-x"></i> Twitter / X</label>
+                                <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary"
+                                       name="sl_twitter" placeholder="https://x.com/yourhandle">
+                            </div>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-info w-100 mt-2">
@@ -105,4 +156,19 @@
 
     </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+// Toggle chevron direction when social section collapses/expands
+const regSocialSection = document.getElementById('reg-social-section');
+const regSocialChevron = document.getElementById('reg-social-chevron');
+if (regSocialSection && regSocialChevron) {
+    regSocialSection.addEventListener('show.bs.collapse', () => {
+        regSocialChevron.classList.replace('bi-chevron-down', 'bi-chevron-up');
+    });
+    regSocialSection.addEventListener('hide.bs.collapse', () => {
+        regSocialChevron.classList.replace('bi-chevron-up', 'bi-chevron-down');
+    });
+}
+</script>
 {% endblock %}

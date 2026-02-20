@@ -175,3 +175,52 @@ def test_contracts_page_requires_auth(client):
     """Test that the contracts page requires authentication."""
     resp = client.get("/contracts", follow_redirects=False)
     assert resp.status_code == 302
+
+
+def test_internet_topology_with_user_social_links(app, client):
+    """Topology endpoint with a DID that has social links should add a 'Your Social Networks' tier."""
+    from socialchain.api.auth import create_user
+    from socialchain.social.profile import Profile, DeviceType
+
+    state = app.app_state
+    user = create_user("topo_user", "pass", "human")
+    state.user_registry[user.username] = user
+    state.did_to_username[user.did] = user.username
+    profile = Profile(
+        did=user.did,
+        display_name="Topo User",
+        device_type=DeviceType.HUMAN,
+        metadata={"social_links": {"facebook": "https://facebook.com/testuser"}},
+    )
+    state.network_map.add_profile(profile)
+
+    resp = client.get(f"/api/internet/topology?did={user.did}")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    tier_names = [t["name"] for t in data["tiers"]]
+    assert "Your Social Networks" in tier_names
+    social_tier = next(t for t in data["tiers"] if t["name"] == "Your Social Networks")
+    node_ids = [n["id"] for n in social_tier["nodes"]]
+    assert "social_facebook" in node_ids
+    # The topology links should include the social network node
+    link_targets = [lnk["target"] for lnk in data["links"]]
+    assert "social_facebook" in link_targets
+
+
+def test_internet_topology_no_social_links(app, client):
+    """Topology endpoint with a DID that has no social links should NOT add 'Your Social Networks'."""
+    from socialchain.api.auth import create_user
+    from socialchain.social.profile import Profile, DeviceType
+
+    state = app.app_state
+    user = create_user("topo_user2", "pass", "human")
+    state.user_registry[user.username] = user
+    state.did_to_username[user.did] = user.username
+    profile = Profile(did=user.did, display_name="Topo User 2", device_type=DeviceType.HUMAN)
+    state.network_map.add_profile(profile)
+
+    resp = client.get(f"/api/internet/topology?did={user.did}")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    tier_names = [t["name"] for t in data["tiers"]]
+    assert "Your Social Networks" not in tier_names

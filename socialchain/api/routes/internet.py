@@ -220,4 +220,40 @@ def internet_topology():
             {"source": "sc_main", "target": "sc_peer_ap"},
         ],
     }
+
+    # Integrate user-specific social network nodes when a DID is provided
+    did = request.args.get("did", "").strip()
+    if did:
+        try:
+            from flask import current_app
+            state = current_app.app_state
+            profile = state.network_map.get_profile(did)
+            if profile and profile.metadata:
+                user_social_links = profile.metadata.get("social_links", {})
+                _PLATFORM_META = {
+                    "facebook":  {"label": "Facebook",   "region": "Global"},
+                    "linkedin":  {"label": "LinkedIn",   "region": "Global"},
+                    "instagram": {"label": "Instagram",  "region": "Global"},
+                    "youtube":   {"label": "YouTube",    "region": "Global"},
+                    "twitter":   {"label": "Twitter / X", "region": "Global"},
+                }
+                social_nodes = []
+                for platform, meta in _PLATFORM_META.items():
+                    if user_social_links.get(platform):
+                        social_nodes.append({
+                            "id": f"social_{platform}",
+                            "label": meta["label"],
+                            "region": meta["region"],
+                            "url": user_social_links[platform],
+                        })
+                        topology["links"].append({"source": "sc_main", "target": f"social_{platform}"})
+                if social_nodes:
+                    topology["tiers"].append({
+                        "name": "Your Social Networks",
+                        "color": "#6f42c1",
+                        "nodes": social_nodes,
+                    })
+        except Exception:
+            pass  # Do not fail topology if profile lookup fails
+
     return jsonify(topology), 200

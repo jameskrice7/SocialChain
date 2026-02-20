@@ -4,6 +4,23 @@ A **VS Code-style blockchain network workbench** for creating, maintaining, and 
 
 Every participant — human, IoT device, or autonomous agent — is a cryptographically-verified blockchain node with a self-sovereign decentralized identity (DID). The workbench gives you the tools to design, deploy, inspect, and evolve the network without leaving the app.
 
+## Downloads
+
+Get started instantly — no terminal required. Download the desktop app for your platform from the [latest GitHub Release](https://github.com/jameskrice7/SocialChain/releases/latest):
+
+| Platform | Installer | Notes |
+|----------|-----------|-------|
+| **Windows** | [⬇ SocialChain-Setup.exe](https://github.com/jameskrice7/SocialChain/releases/latest/download/SocialChain-Setup.exe) | NSIS installer, 64-bit |
+| **macOS (Intel)** | [⬇ SocialChain-x64.dmg](https://github.com/jameskrice7/SocialChain/releases/latest/download/SocialChain-x64.dmg) | macOS 10.15+ |
+| **macOS (Apple Silicon)** | [⬇ SocialChain-arm64.dmg](https://github.com/jameskrice7/SocialChain/releases/latest/download/SocialChain-arm64.dmg) | M1/M2/M3 |
+| **Linux** | [⬇ SocialChain-x86_64.AppImage](https://github.com/jameskrice7/SocialChain/releases/latest/download/SocialChain-x86_64.AppImage) | AppImage, no install needed |
+| **Linux (.deb)** | [⬇ SocialChain-amd64.deb](https://github.com/jameskrice7/SocialChain/releases/latest/download/SocialChain-amd64.deb) | Debian / Ubuntu |
+
+> **No Python or Node.js required.** The desktop installer bundles everything you need.  
+> After installing, launch SocialChain, create your node identity, and you're on the network.
+
+All releases are published automatically via GitHub Actions when a version tag is pushed. See [Releases](https://github.com/jameskrice7/SocialChain/releases) for previous versions and release notes.
+
 ## Workbench Features
 
 | Panel | Description |

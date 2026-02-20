@@ -208,6 +208,7 @@
             <span><span class="inet-legend-dot" style="background:#0dcaf0;"></span>Cloud/CDN</span>
             <span><span class="inet-legend-dot" style="background:#ffc107;"></span>IXP</span>
             <span><span class="inet-legend-dot" style="background:#198754;"></span>SocialChain</span>
+            <span><span class="inet-legend-dot" style="background:#6f42c1;"></span>Social</span>
         </div>
 
         <!-- Stats inline -->
@@ -241,6 +242,9 @@
                 </div>
                 <div class="inet-stab" data-panel="node" onclick="switchSidebarTab(this,'node')">
                     <i class="bi bi-hdd-network"></i> Node
+                </div>
+                <div class="inet-stab" data-panel="social" onclick="switchSidebarTab(this,'social')">
+                    <i class="bi bi-share"></i> Social
                 </div>
                 <div class="inet-stab" data-panel="chain" onclick="switchSidebarTab(this,'chain')">
                     <i class="bi bi-boxes"></i> Chain
@@ -281,6 +285,21 @@
                     </div>
                     <div id="inet-node-chain-entries">
                         <div class="text-secondary small">No node selected.</div>
+                    </div>
+                </div>
+
+                <!-- ── Social Networks panel ── -->
+                <div class="inet-spanel" id="spanel-social">
+                    <div class="text-secondary small fw-bold text-uppercase mb-2" style="letter-spacing:.04em;">
+                        <i class="bi bi-share" style="color:#6f42c1;"></i> Your Social Networks
+                    </div>
+                    <div id="inet-social-list" class="text-secondary small">
+                        Loading…
+                    </div>
+                    <hr style="border-color:rgba(111,66,193,0.2);">
+                    <div class="text-secondary small" style="font-size:0.7rem;">
+                        Linked social networks appear as nodes on the internet topology.
+                        Add or update them from your <a href="/profile" class="text-info text-decoration-none">Profile</a>.
                     </div>
                 </div>
 
@@ -325,17 +344,19 @@ let inetSimulation = null;
 let currentInetView = 'topo';
 
 const TIER_COLORS = {
-    'Tier 1 ISPs':          '#dc3545',
-    'Cloud / Hyperscalers': '#0dcaf0',
+    'Tier 1 ISPs':              '#dc3545',
+    'Cloud / Hyperscalers':     '#0dcaf0',
     'Internet Exchange Points': '#ffc107',
-    'SocialChain Nodes':    '#198754',
+    'SocialChain Nodes':        '#198754',
+    'Your Social Networks':     '#6f42c1',
 };
 
 const NODE_SIZES = {
-    'Tier 1 ISPs':          16,
-    'Cloud / Hyperscalers': 14,
+    'Tier 1 ISPs':              16,
+    'Cloud / Hyperscalers':     14,
     'Internet Exchange Points': 12,
-    'SocialChain Nodes':    18,
+    'SocialChain Nodes':        18,
+    'Your Social Networks':     16,
 };
 
 /* ─── Sidebar tab switching ─── */
@@ -369,12 +390,14 @@ function setInetView(view) {
 async function loadTopology() {
     document.getElementById('inet-refresh-icon').style.transform = 'rotate(360deg)';
     try {
-        const res = await fetch('/api/internet/topology');
+        const url = '/api/internet/topology' + (USER_DID ? `?did=${encodeURIComponent(USER_DID)}` : '');
+        const res = await fetch(url);
         if (res.ok) {
             topoData = await res.json();
             if (currentInetView === 'topo') renderTopology();
             else renderGlobe();
             updateInetStats();
+            updateSocialNetworksPanel();
         }
     } catch(e) {}
     document.getElementById('inet-refresh-icon').style.transform = '';
@@ -386,6 +409,33 @@ function updateInetStats() {
     const nodes = topoData.tiers.reduce((acc, t) => acc + t.nodes.length, 0);
     document.getElementById('inet-stat-nodes').textContent = nodes;
     document.getElementById('inet-stat-links').textContent = (topoData.links || []).length;
+}
+
+/* ─── Social Networks panel ─── */
+function updateSocialNetworksPanel() {
+    const el = document.getElementById('inet-social-list');
+    if (!topoData || !el) return;
+    const socialTier = topoData.tiers.find(t => t.name === 'Your Social Networks');
+    if (!socialTier || !socialTier.nodes.length) {
+        el.innerHTML = '<p class="text-secondary" style="font-size:0.78rem;">No social networks linked yet. Add them from your <a href="/profile" class="text-info text-decoration-none">Profile</a>.</p>';
+        return;
+    }
+    const _ICONS = {facebook:'facebook', linkedin:'linkedin', instagram:'instagram', youtube:'youtube', twitter:'twitter-x'};
+    el.innerHTML = socialTier.nodes.map(n => {
+        const platform = n.id.replace('social_', '');
+        const icon = _ICONS[platform] || 'share';
+        const linkHtml = n.url
+            ? `<a href="${escH(n.url)}" target="_blank" rel="noopener" class="text-info text-decoration-none" style="font-size:0.7rem;">${escH(n.url.slice(0, 40))}${n.url.length > 40 ? '…' : ''}</a>`
+            : '';
+        return `<div style="border-left:2px solid #6f42c1;padding:5px 8px;margin-bottom:6px;background:rgba(111,66,193,0.06);border-radius:0 4px 4px 0;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-${escH(icon)}" style="color:#6f42c1;font-size:1rem;"></i>
+                <span class="text-light fw-bold" style="font-size:0.82rem;">${escH(n.label)}</span>
+                <span class="badge" style="background:rgba(111,66,193,0.18);color:#6f42c1;font-size:0.6rem;">Linked</span>
+            </div>
+            ${linkHtml ? `<div class="mt-1">${linkHtml}</div>` : ''}
+        </div>`;
+    }).join('');
 }
 
 /* ─── Topology D3 render ─── */
@@ -411,6 +461,7 @@ function renderTopology() {
                 tier: tier.name,
                 color: TIER_COLORS[tier.name] || '#6c757d',
                 r: NODE_SIZES[tier.name] || 12,
+                url: n.url || null,
             };
             nodes.push(node);
             tierIndex[n.id] = node;
@@ -461,11 +512,18 @@ function renderTopology() {
     const isSCLink = l => {
         const s = typeof l.source === 'object' ? l.source.tier : (tierIndex[l.source] || {}).tier;
         const t = typeof l.target === 'object' ? l.target.tier : (tierIndex[l.target] || {}).tier;
-        return s === 'SocialChain Nodes' || t === 'SocialChain Nodes';
+        return s === 'SocialChain Nodes' || t === 'SocialChain Nodes'
+            || s === 'Your Social Networks' || t === 'Your Social Networks';
     };
 
     const link = g.append('g').selectAll('line').data(links).join('line')
-        .attr('stroke', d => isSCLink(d) ? '#198754' : '#0dcaf020')
+        .attr('stroke', d => {
+            const s = typeof d.source === 'object' ? d.source.tier : (tierIndex[d.source] || {}).tier;
+            const t = typeof d.target === 'object' ? d.target.tier : (tierIndex[d.target] || {}).tier;
+            if (s === 'Your Social Networks' || t === 'Your Social Networks') return '#6f42c1';
+            if (s === 'SocialChain Nodes'    || t === 'SocialChain Nodes')    return '#198754';
+            return '#0dcaf020';
+        })
         .attr('stroke-width', d => isSCLink(d) ? 1.5 : 0.8)
         .attr('stroke-dasharray', d => isSCLink(d) ? null : '4,3')
         .attr('stroke-opacity', 0.7);
@@ -489,12 +547,12 @@ function renderTopology() {
         })
         .on('mouseleave', () => { tooltip.style.display = 'none'; });
 
-    /* Pulse rings for SC nodes */
-    node.filter(d => d.tier === 'SocialChain Nodes')
+    /* Pulse rings for SC nodes and Social Network nodes */
+    node.filter(d => d.tier === 'SocialChain Nodes' || d.tier === 'Your Social Networks')
         .append('circle')
         .attr('r', d => d.r + 8)
         .attr('fill', 'none')
-        .attr('stroke', '#198754')
+        .attr('stroke', d => d.tier === 'Your Social Networks' ? '#6f42c1' : '#198754')
         .attr('stroke-width', 1)
         .attr('opacity', 0.4)
         .classed('sc-inet-pulse', true);
@@ -679,6 +737,17 @@ function showNodeInfo(node) {
                 This node is part of the SocialChain peer mesh.
                 All transactions passing through this peer are anchored on the shared chain.
             </div>`;
+    } else if (node.tier === 'Your Social Networks') {
+        const urlHtml = node.url
+            ? `<div class="mt-1"><a href="${escH(node.url)}" target="_blank" rel="noopener" class="text-info text-decoration-none" style="font-size:0.72rem;">${escH(node.url.slice(0, 50))}${node.url.length > 50 ? '…' : ''}</a></div>`
+            : '';
+        chainEl.innerHTML = `
+            <div class="text-secondary small fw-bold text-uppercase mb-1" style="letter-spacing:.04em;">
+                <i class="bi bi-share" style="color:#6f42c1;"></i> Linked Social Network
+            </div>
+            <div style="font-size:0.75rem;color:#6f42c1;">
+                This social network is linked to your SocialChain profile and visible in the topology.
+            </div>${urlHtml}`;
     } else {
         chainEl.innerHTML = `<div class="text-secondary small">Not a SocialChain node. Internet infrastructure only.</div>`;
     }
