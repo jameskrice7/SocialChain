@@ -116,6 +116,38 @@
         </div>
     </div>
 
+    <!-- ── Smart Contracts Summary ── -->
+    <div class="col-12">
+        <div class="card bg-black border-info">
+            <div class="card-header border-secondary d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-file-earmark-code text-info"></i> Smart Contracts</span>
+                <a href="/contracts" class="btn btn-sm btn-outline-info sc-neon-btn" style="font-size:0.72rem;">
+                    <i class="bi bi-arrow-right-circle"></i> Manage Contracts
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-4 text-center">
+                        <div class="text-info fw-bold fs-5" id="dash-ct-active">–</div>
+                        <div class="text-secondary small">Active</div>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="text-success fw-bold fs-5" id="dash-ct-completed">–</div>
+                        <div class="text-secondary small">Completed</div>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="text-light fw-bold fs-5" id="dash-ct-verified">–</div>
+                        <div class="text-secondary small">Verified</div>
+                    </div>
+                </div>
+                <div id="dash-contracts-list" class="list-group list-group-flush"
+                     style="max-height:140px;overflow-y:auto;">
+                    <div class="p-2 text-secondary small">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Social Media Connections ── -->
     <div class="col-12">
         <div class="card bg-black border-secondary">
@@ -571,6 +603,39 @@ loadPeers();
 loadVerificationStatus();
 loadActiveNodes();
 loadSocialLinks();
+loadDashboardContracts();
 setInterval(loadChain, 10000);
+setInterval(loadDashboardContracts, 15000);
+
+// ── Contracts summary ──────────────────────────────────────────────────────
+async function loadDashboardContracts() {
+    try {
+        const res = await fetch('/api/contracts');
+        if (!res.ok) return;
+        const data = await res.json();
+        const contracts = data.contracts || [];
+        document.getElementById('dash-ct-active').textContent    = contracts.filter(c => c.status === 'ACTIVE').length;
+        document.getElementById('dash-ct-completed').textContent = contracts.filter(c => c.status === 'COMPLETED').length;
+        document.getElementById('dash-ct-verified').textContent  = contracts.filter(c => c.status === 'VERIFIED').length;
+        const list = document.getElementById('dash-contracts-list');
+        const recent = contracts.slice().reverse().slice(0, 4);
+        if (!recent.length) {
+            list.innerHTML = '<div class="p-2 text-secondary small">No contracts yet. <a href="/contracts" class="text-info">Create one</a>.</div>';
+            return;
+        }
+        const STATUS_COLORS = {ACTIVE:'#0dcaf0', COMPLETED:'#198754', VERIFIED:'#0dcaf0', PENDING:'#ffc107', FAILED:'#dc3545'};
+        list.innerHTML = recent.map(c => `
+            <a href="/contracts" class="list-group-item list-group-item-action bg-dark border-secondary py-2">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                    <span class="text-light small fw-semibold">${escHtml(c.title)}</span>
+                    <span style="font-size:0.68rem;color:${STATUS_COLORS[c.status]||'#6c757d'};white-space:nowrap;">${escHtml(c.status)}</span>
+                </div>
+                <div class="text-secondary" style="font-size:0.68rem;">${c.participants.length} participant(s) · ${new Date(c.created_at*1000).toLocaleDateString()}</div>
+            </a>`).join('');
+    } catch(e) {}
+}
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 {% endblock %}

@@ -45,6 +45,10 @@
            data-tooltip="Earth Network"><i class="bi bi-globe2"></i></a>
         <a href="{{ url_for('web.ide') }}" class="sc-ab-btn {% if request.endpoint == 'web.ide' %}active{% endif %}"
            data-tooltip="Network Workbench"><i class="bi bi-layout-wtf"></i></a>
+        <a href="{{ url_for('web.contracts') }}" class="sc-ab-btn {% if request.endpoint == 'web.contracts' %}active{% endif %}"
+           data-tooltip="Smart Contracts"><i class="bi bi-file-earmark-code"></i></a>
+        <a href="{{ url_for('web.internet') }}" class="sc-ab-btn {% if request.endpoint == 'web.internet' %}active{% endif %}"
+           data-tooltip="Internet Level"><i class="bi bi-globe2"></i></a>
         <a href="{{ url_for('web.profile') }}" class="sc-ab-btn {% if request.endpoint == 'web.profile' %}active{% endif %}"
            data-tooltip="My Profile"><i class="bi bi-person-circle"></i></a>
         <div class="sc-ab-spacer"></div>
@@ -73,6 +77,8 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.network') }}"><i class="bi bi-diagram-3"></i> Network</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.my_network') }}"><i class="bi bi-globe2"></i> Earth Network</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.ide') }}"><i class="bi bi-layout-wtf"></i> Workbench</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.contracts') }}"><i class="bi bi-file-earmark-code"></i> Contracts</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.internet') }}"><i class="bi bi-globe2"></i> Internet</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.profile') }}"><i class="bi bi-person"></i> Profile</a></li>
                     </ul>
                     <ul class="navbar-nav align-items-center">
@@ -127,8 +133,8 @@
         <div class="sc-chat-messages" id="sc-chat-messages">
             <div class="sc-chat-msg agent">
                 <div class="sc-chat-sender">ChainBot</div>
-                Hello! I'm your SocialChain IDE assistant. Ask me about smart contracts,
-                node identities, network topology, or blockchain transactions.
+                Hello! I'm your SocialChain assistant. Ask me about smart contracts,
+                blockchain identity, or type <code>search: &lt;topic&gt;</code> to search the live web!
             </div>
         </div>
         <div class="sc-chat-thinking" id="sc-chat-thinking">
@@ -136,7 +142,7 @@
         </div>
         <div class="sc-chat-input-row">
             <textarea class="sc-chat-input" id="sc-chat-input" rows="1"
-                      placeholder="Ask the agent…" aria-label="Chat message"></textarea>
+                      placeholder="Ask the agent or search: topic…" aria-label="Chat message"></textarea>
             <button class="sc-chat-send-btn" id="sc-chat-send-btn"
                     title="Send (Enter)"><i class="bi bi-send"></i></button>
         </div>
@@ -337,11 +343,35 @@ async function scSendChat() {
         const agentBubble = document.createElement('div');
         agentBubble.className = 'sc-chat-msg agent';
         const agentName = escHtmlChat(data.agent || 'Agent');
-        const reply     = escHtmlChat(data.reply || data.error || 'No response.');
-        agentBubble.innerHTML = `<div class="sc-chat-sender">${agentName}</div>` +
-            reply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                 .replace(/`([^`]+)`/g, '<code style="font-size:0.75rem;color:#ffc107">$1</code>')
-                 .replace(/\n/g, '<br>');
+
+        // Render search results specially
+        if (data.type === 'search' && Array.isArray(data.search_results)) {
+            // Build search result HTML directly from structured data to avoid URL parsing issues
+            let searchHtml = `<div class="sc-chat-sender">${agentName} <span style="font-size:0.65rem;color:#6c757d;">🌐 Web</span></div>`;
+            const abstract = data.abstract || '';
+            if (abstract) {
+                searchHtml += `<strong>${escHtmlChat('Web results for: ' + (data.query || ''))}</strong><br>${escHtmlChat(abstract)}<br><br>`;
+            }
+            (data.search_results || []).forEach(r => {
+                const title = escHtmlChat((r.title || '').slice(0, 60));
+                const snippet = escHtmlChat((r.snippet || '').slice(0, 150));
+                const rawUrl = r.url || '';
+                // Only render http/https URLs to prevent XSS
+                const safeUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : '';
+                searchHtml += `• <strong>${title}</strong><br>${snippet}`;
+                if (safeUrl) {
+                    searchHtml += `<br><a href="${escHtmlChat(safeUrl)}" target="_blank" rel="noopener noreferrer" style="color:#0dcaf0;font-size:0.7rem;">${escHtmlChat(safeUrl.slice(0, 55))}…</a>`;
+                }
+                searchHtml += '<br><br>';
+            });
+            agentBubble.innerHTML = searchHtml;
+        } else {
+            const reply = escHtmlChat(data.reply || data.error || 'No response.');
+            agentBubble.innerHTML = `<div class="sc-chat-sender">${agentName}</div>` +
+                reply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                     .replace(/`([^`]+)`/g, '<code style="font-size:0.75rem;color:#ffc107">$1</code>')
+                     .replace(/\n/g, '<br>');
+        }
         messages.appendChild(agentBubble);
         messages.scrollTop = messages.scrollHeight;
     } catch(e) {

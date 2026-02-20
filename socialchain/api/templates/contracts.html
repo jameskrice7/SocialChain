@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block title %}Contracts – SocialChain{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+    <!-- ── Header ── -->
+    <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <h4 class="sc-glow-text fw-bold mb-0">
+                <i class="bi bi-file-earmark-code text-info"></i> Smart Contracts
+            </h4>
+            <p class="text-secondary mb-0 small">
+                Blockchain-anchored contracts · all lifecycle events recorded on-chain
+            </p>
+        </div>
+        <button class="btn btn-sm btn-info sc-neon-btn" data-bs-toggle="modal" data-bs-target="#createContractModal">
+            <i class="bi bi-plus-circle"></i> New Contract
+        </button>
+    </div>
+
+    <!-- ── Stats ── -->
+    <div class="col-md-3">
+        <div class="card bg-black border-info text-center p-3">
+            <div class="display-4 text-info fw-bold" id="ct-stat-total">–</div>
+            <div class="text-secondary small">Total Contracts</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-black border-warning text-center p-3">
+            <div class="display-4 text-warning fw-bold" id="ct-stat-active">–</div>
+            <div class="text-secondary small">Active</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-black border-success text-center p-3">
+            <div class="display-4 text-success fw-bold" id="ct-stat-completed">–</div>
+            <div class="text-secondary small">Completed</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-black border-secondary text-center p-3">
+            <div class="display-4 text-light fw-bold" id="ct-stat-verified">–</div>
+            <div class="text-secondary small">Verified</div>
+        </div>
+    </div>
+
+    <!-- ── Contracts List ── -->
+    <div class="col-md-7">
+        <div class="card bg-black border-secondary">
+            <div class="card-header border-secondary d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-list-ul text-info me-1"></i> All Contracts</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadContracts()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div id="contracts-list" style="max-height: 60vh; overflow-y: auto;">
+                    <div class="p-3 text-secondary small">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Contract Detail ── -->
+    <div class="col-md-5">
+        <div class="card bg-black border-info h-100">
+            <div class="card-header border-secondary">
+                <i class="bi bi-info-circle text-info me-1"></i>
+                <span class="text-info fw-semibold">Contract Detail</span>
+            </div>
+            <div id="contract-detail" class="card-body">
+                <p class="text-secondary small mb-0">
+                    <i class="bi bi-cursor text-secondary"></i>
+                    Select a contract to see details and blockchain history.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Create Contract Modal ── -->
+<div class="modal fade" id="createContractModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-black border-info">
+            <div class="modal-header border-secondary">
+                <h6 class="modal-title text-info">
+                    <i class="bi bi-file-earmark-plus"></i> Create Smart Contract
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Title <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary"
+                           id="ct-title" placeholder="e.g. Data Processing Agreement">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Description</label>
+                    <textarea class="form-control bg-dark text-light border-secondary"
+                              id="ct-description" rows="3"
+                              placeholder="Describe the contract purpose and obligations…"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">
+                        Participants (one DID per line)
+                    </label>
+                    <textarea class="form-control bg-dark text-light border-secondary font-monospace"
+                              id="ct-participants" rows="3"
+                              placeholder="did:socialchain:03abc…&#10;did:socialchain:02xyz…"></textarea>
+                    <div class="form-text text-secondary" style="font-size:0.72rem;">
+                        Your DID (<code class="text-warning" id="creator-did-hint">{{ user_did }}</code>)
+                        is automatically included as creator.
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Terms (JSON)</label>
+                    <textarea class="form-control bg-dark text-light border-secondary font-monospace"
+                              id="ct-terms" rows="4"
+                              placeholder='{"deliverable": "Report", "deadline": "2026-03-01", "conditions": "..."}'></textarea>
+                </div>
+                <div id="ct-create-error" class="text-danger small d-none"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-info" onclick="createContract()">
+                    <i class="bi bi-link-45deg"></i> Create &amp; Anchor to Chain
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.ct-status-badge {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .04em;
+}
+.ct-status-badge.PENDING   { background: rgba(255,193,7,.15); color:#ffc107; border:1px solid #ffc10760; }
+.ct-status-badge.ACTIVE    { background: rgba(13,202,240,.15); color:#0dcaf0; border:1px solid #0dcaf060; }
+.ct-status-badge.COMPLETED { background: rgba(25,135,84,.15);  color:#198754; border:1px solid #19875460; }
+.ct-status-badge.VERIFIED  { background: rgba(13,202,240,.2);  color:#0dcaf0; border:1px solid #0dcaf0; box-shadow:0 0 6px #0dcaf040; }
+.ct-status-badge.FAILED    { background: rgba(220,53,69,.15);  color:#dc3545; border:1px solid #dc354560; }
+
+.ct-row {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    transition: background .12s;
+}
+.ct-row:hover { background: rgba(13,202,240,0.06); }
+.ct-row.selected { background: rgba(13,202,240,0.1); border-left: 3px solid #0dcaf0; }
+
+.chain-entry {
+    border-left: 2px solid rgba(13,202,240,0.3);
+    padding: 4px 10px;
+    margin-bottom: 6px;
+    font-size: 0.72rem;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const USER_DID = "{{ user_did }}";
+let allContracts = [];
+let selectedId = null;
+
+const STATUS_COLORS = {
+    PENDING: '#ffc107',
+    ACTIVE: '#0dcaf0',
+    COMPLETED: '#198754',
+    VERIFIED: '#0dcaf0',
+    FAILED: '#dc3545',
+};
+
+async function loadContracts() {
+    const res = await fetch('/api/contracts');
+    if (!res.ok) return;
+    const data = await res.json();
+    allContracts = data.contracts || [];
+    renderContractsList();
+    updateStats();
+    if (selectedId) {
+        const c = allContracts.find(x => x.contract_id === selectedId);
+        if (c) renderContractDetail(c);
+    }
+}
+
+function updateStats() {
+    document.getElementById('ct-stat-total').textContent = allContracts.length;
+    document.getElementById('ct-stat-active').textContent    = allContracts.filter(c => c.status === 'ACTIVE').length;
+    document.getElementById('ct-stat-completed').textContent = allContracts.filter(c => c.status === 'COMPLETED').length;
+    document.getElementById('ct-stat-verified').textContent  = allContracts.filter(c => c.status === 'VERIFIED').length;
+}
+
+function renderContractsList() {
+    const el = document.getElementById('contracts-list');
+    if (!allContracts.length) {
+        el.innerHTML = '<div class="p-3 text-secondary small">No contracts yet. Create your first!</div>';
+        return;
+    }
+    el.innerHTML = allContracts.slice().reverse().map(c => `
+        <div class="ct-row ${c.contract_id === selectedId ? 'selected' : ''}"
+             data-cid="${escH(c.contract_id)}">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+                <div class="fw-semibold text-light small">${escH(c.title)}</div>
+                <span class="ct-status-badge ${escH(c.status)}">${escH(c.status)}</span>
+            </div>
+            <div class="d-flex align-items-center gap-3 mt-1">
+                <span class="text-secondary" style="font-size:0.68rem;">
+                    <i class="bi bi-fingerprint text-secondary me-1"></i>${escH(c.contract_id.slice(0, 12))}…
+                </span>
+                <span class="text-secondary" style="font-size:0.68rem;">
+                    <i class="bi bi-people me-1"></i>${c.participants.length} participant(s)
+                </span>
+                <span class="text-secondary ms-auto" style="font-size:0.68rem;">
+                    ${new Date(c.created_at * 1000).toLocaleDateString()}
+                </span>
+            </div>
+        </div>
+    `).join('');
+    el.querySelectorAll('[data-cid]').forEach(row => {
+        row.addEventListener('click', () => {
+            selectedId = row.dataset.cid;
+            const c = allContracts.find(x => x.contract_id === selectedId);
+            if (c) renderContractDetail(c);
+            el.querySelectorAll('.ct-row').forEach(r => r.classList.toggle('selected', r.dataset.cid === selectedId));
+        });
+    });
+}
+
+function renderContractDetail(c) {
+    const el = document.getElementById('contract-detail');
+    const canComplete = c.status === 'ACTIVE' || c.status === 'PENDING';
+    const canVerify   = c.status === 'COMPLETED';
+
+    const termsHtml = Object.keys(c.terms || {}).length
+        ? `<table class="table table-sm table-dark table-borderless mt-2 mb-0">
+            ${Object.entries(c.terms).map(([k,v]) => `
+              <tr>
+                <td class="text-secondary small pe-2">${escH(k)}</td>
+                <td class="text-light small">${escH(String(v))}</td>
+              </tr>`).join('')}
+           </table>`
+        : '<div class="text-secondary small mt-1">No terms defined.</div>';
+
+    const participantsHtml = (c.participants || []).map(p =>
+        `<div class="text-info font-monospace" style="font-size:0.68rem;">${escH(p)}</div>`
+    ).join('') || '<div class="text-secondary small">None</div>';
+
+    el.innerHTML = `
+        <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+            <div>
+                <div class="fw-bold text-light">${escH(c.title)}</div>
+                <span class="ct-status-badge ${escH(c.status)} mt-1">${escH(c.status)}</span>
+            </div>
+            <div class="d-flex gap-1 flex-wrap">
+                ${canComplete ? `<button class="btn btn-sm btn-outline-success" onclick="completeContract('${escH(c.contract_id)}')">
+                    <i class="bi bi-check-circle"></i> Complete</button>` : ''}
+                ${canVerify ? `<button class="btn btn-sm btn-outline-info" onclick="verifyContract('${escH(c.contract_id)}')">
+                    <i class="bi bi-patch-check"></i> Verify</button>` : ''}
+            </div>
+        </div>
+
+        ${c.description ? `<p class="text-secondary small">${escH(c.description)}</p>` : ''}
+
+        <div class="mb-2">
+            <div class="text-secondary small fw-bold text-uppercase mb-1" style="letter-spacing:.04em;">
+                <i class="bi bi-people"></i> Participants
+            </div>
+            ${participantsHtml}
+        </div>
+
+        <div class="mb-2">
+            <div class="text-secondary small fw-bold text-uppercase mb-1" style="letter-spacing:.04em;">
+                <i class="bi bi-journal-text"></i> Terms
+            </div>
+            ${termsHtml}
+        </div>
+
+        <div class="mb-2">
+            <div class="text-secondary small fw-bold text-uppercase mb-1" style="letter-spacing:.04em;">
+                <i class="bi bi-link-45deg text-info"></i> Blockchain Transactions
+            </div>
+            <div id="ct-txs-${escH(c.contract_id)}" class="text-secondary small">Loading…</div>
+        </div>
+
+        <div class="mt-2">
+            <span class="text-secondary" style="font-size:0.68rem;">
+                Contract hash: <code class="text-warning">${escH(c.contract_hash || '')}</code>
+            </span>
+        </div>`;
+
+    loadContractTxs(c.contract_id);
+}
+
+async function loadContractTxs(contractId) {
+    const el = document.getElementById(`ct-txs-${contractId}`);
+    if (!el) return;
+    try {
+        const res = await fetch(`/api/contracts/${encodeURIComponent(contractId)}/transactions`);
+        if (!res.ok) { el.textContent = 'Could not load transactions.'; return; }
+        const data = await res.json();
+        const txs = data.transactions || [];
+        if (!txs.length) {
+            el.innerHTML = '<span class="text-secondary">No transactions mined yet. <em>Mine the pending block to anchor.</em></span>';
+            return;
+        }
+        el.innerHTML = txs.map(tx => `
+            <div class="chain-entry">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-boxes text-info"></i>
+                    <span class="text-info">Block ${tx.block_index === 'pending' ? '<em>pending</em>' : '#' + tx.block_index}</span>
+                    <span class="badge ${txTypeBadge(tx.data && tx.data.type)}">${escH((tx.data && tx.data.type) || 'tx')}</span>
+                </div>
+                <div class="text-secondary mt-1">
+                    TX: <code class="text-warning">${escH((tx.tx_id || '').slice(0, 16))}…</code>
+                    <span class="ms-2">${tx.data && tx.data.timestamp ? new Date(tx.data.timestamp * 1000).toLocaleString() : ''}</span>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) {
+        if (el) el.textContent = 'Error loading transactions.';
+    }
+}
+
+function txTypeBadge(type) {
+    const map = {
+        contract_create: 'bg-info text-dark',
+        contract_complete: 'bg-success',
+        contract_verify: 'bg-warning text-dark',
+    };
+    return map[type] || 'bg-secondary';
+}
+
+async function createContract() {
+    const title = document.getElementById('ct-title').value.trim();
+    const description = document.getElementById('ct-description').value.trim();
+    const errEl = document.getElementById('ct-create-error');
+
+    if (!title) {
+        errEl.textContent = 'Title is required.';
+        errEl.classList.remove('d-none');
+        return;
+    }
+    errEl.classList.add('d-none');
+
+    const rawParts = document.getElementById('ct-participants').value.trim();
+    const participants = rawParts
+        ? rawParts.split('\n').map(s => s.trim()).filter(Boolean)
+        : [];
+
+    let terms = {};
+    const rawTerms = document.getElementById('ct-terms').value.trim();
+    if (rawTerms) {
+        try { terms = JSON.parse(rawTerms); }
+        catch { errEl.textContent = 'Terms must be valid JSON.'; errEl.classList.remove('d-none'); return; }
+    }
+
+    const body = {
+        creator_did: USER_DID,
+        title,
+        description,
+        participants,
+        terms,
+    };
+
+    const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('createContractModal')).hide();
+        // Clear form
+        ['ct-title','ct-description','ct-participants','ct-terms'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+        selectedId = data.contract.contract_id;
+        await loadContracts();
+    } else {
+        errEl.textContent = data.error || 'Failed to create contract.';
+        errEl.classList.remove('d-none');
+    }
+}
+
+async function completeContract(contractId) {
+    const res = await fetch(`/api/contracts/${encodeURIComponent(contractId)}/complete`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({completer_did: USER_DID, completion_data: {completed_by: USER_DID}}),
+    });
+    if (res.ok) { await loadContracts(); }
+}
+
+async function verifyContract(contractId) {
+    const res = await fetch(`/api/contracts/${encodeURIComponent(contractId)}/verify`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({verifier_did: USER_DID}),
+    });
+    if (res.ok) { await loadContracts(); }
+}
+
+function escH(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+loadContracts();
+setInterval(loadContracts, 15000);
+</script>
+{% endblock %}

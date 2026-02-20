@@ -90,6 +90,23 @@ def agent_feed():
     return jsonify({"feed": feed}), 200
 
 
+@agents_bp.route("/api/agents/<path:agent_did>/status", methods=["POST"])
+def update_agent_status(agent_did):
+    """Record an agent's status on the blockchain and return it."""
+    state = current_app.app_state
+    if agent_did not in state.agent_registry:
+        return jsonify({"error": "Agent not found"}), 404
+    data = request.get_json() or {}
+    status = data.get("status", "active")
+    allowed_statuses = {"active", "online", "offline", "idle", "busy"}
+    if status not in allowed_statuses:
+        return jsonify({"error": f"Invalid status. Must be one of {sorted(allowed_statuses)}"}), 400
+    agent = state.agent_registry[agent_did]
+    tx = agent.update_status(status, state.blockchain)
+    return jsonify({"message": "Status updated on chain", "status": status, "tx_id": tx.tx_id, "agent": agent.to_dict()}), 200
+
+
+
 @agents_bp.route("/api/agents/<path:agent_did>/tasks", methods=["POST"])
 def submit_task(agent_did):
     state = current_app.app_state

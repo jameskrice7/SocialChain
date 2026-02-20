@@ -17,6 +17,7 @@ class AppState:
         self.social_requests = {}  # request_id -> SocialRequest
         self.user_registry = {}  # username -> User
         self.did_to_username = {}  # did -> username
+        self.contracts = {}  # contract_id -> SmartContract
 
 
 app_state = AppState()
@@ -38,6 +39,8 @@ def create_app(state: AppState = None) -> Flask:
     from .routes.agents import agents_bp
     from .routes.auth import auth_bp
     from .routes.web import web_bp
+    from .routes.contracts import contracts_bp
+    from .routes.internet import internet_bp
 
     app.register_blueprint(chain_bp)
     app.register_blueprint(network_bp)
@@ -45,5 +48,7 @@ def create_app(state: AppState = None) -> Flask:
     app.register_blueprint(agents_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
+    app.register_blueprint(contracts_bp)
+    app.register_blueprint(internet_bp)
 
     return app

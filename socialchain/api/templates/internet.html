@@ -1,0 +1,763 @@
+{% extends "base.html" %}
+{% block title %}Internet Level – SocialChain{% endblock %}
+
+{% block content %}
+<style>
+/* ── Internet page layout ── */
+#inet-root {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 30px - 22px - 60px);
+    margin: -1rem -1.5rem 0;
+    overflow: hidden;
+}
+
+/* ── Top control bar ── */
+#inet-topbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    background: #050a0e;
+    border-bottom: 1px solid rgba(13,202,240,0.12);
+    overflow-x: auto;
+}
+
+/* ── Main split ── */
+#inet-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* ── Visualization pane ── */
+#inet-viz {
+    flex: 1;
+    position: relative;
+    background: #030810;
+    overflow: hidden;
+}
+#inet-svg { display: block; width: 100%; height: 100%; }
+
+/* ── Right sidebar ── */
+#inet-sidebar {
+    width: 330px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: #070d14;
+    border-left: 1px solid rgba(13,202,240,0.1);
+    overflow: hidden;
+}
+
+/* Sidebar tabs */
+#inet-sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(13,202,240,0.12);
+    flex-shrink: 0;
+}
+.inet-stab {
+    flex: 1;
+    padding: 7px 4px;
+    text-align: center;
+    font-size: 0.72rem;
+    cursor: pointer;
+    color: #6c757d;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+}
+.inet-stab.active { color: #0dcaf0; border-bottom-color: #0dcaf0; }
+.inet-stab:hover { color: #adb5bd; }
+
+#inet-sidebar-panels { flex: 1; overflow: hidden; position: relative; }
+.inet-spanel {
+    position: absolute; inset: 0; display: none;
+    overflow-y: auto; padding: 10px;
+}
+.inet-spanel.active { display: block; }
+
+/* ── Search box ── */
+#inet-search-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+#inet-search-input {
+    flex: 1;
+    background: #0a1018;
+    border: 1px solid rgba(13,202,240,0.3);
+    color: #e0e0e0;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    outline: none;
+}
+#inet-search-input:focus { border-color: #0dcaf0; box-shadow: 0 0 6px #0dcaf030; }
+#inet-search-btn {
+    background: transparent;
+    border: 1px solid #0dcaf0;
+    color: #0dcaf0;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+}
+#inet-search-btn:hover { background: rgba(13,202,240,0.12); }
+
+/* Search results */
+.inet-result {
+    border-left: 2px solid rgba(13,202,240,0.3);
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    transition: border-color .12s;
+}
+.inet-result:hover { border-left-color: #0dcaf0; background: rgba(13,202,240,0.04); }
+.inet-result a {
+    color: #0dcaf0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.inet-result a:hover { text-decoration: underline; }
+.inet-result p {
+    color: #adb5bd;
+    font-size: 0.72rem;
+    margin: 2px 0 0;
+}
+.inet-result .inet-src {
+    font-size: 0.67rem;
+    color: #6c757d;
+}
+
+/* Legend */
+.inet-legend-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+/* Node tooltip */
+#inet-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #101820ee;
+    border: 1px solid #0dcaf080;
+    color: #e0e0e0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    z-index: 9999;
+    display: none;
+    max-width: 220px;
+}
+
+/* Node info panel */
+#inet-node-info {
+    background: rgba(13,202,240,0.04);
+    border: 1px solid rgba(13,202,240,0.12);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 0.78rem;
+    margin-bottom: 10px;
+    min-height: 60px;
+}
+
+/* Pulse animations for SC nodes */
+@keyframes sc-inet-pulse {
+    0%,100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 0.15; transform: scale(1.8); }
+}
+.sc-inet-pulse { animation: sc-inet-pulse 2.2s ease-in-out infinite; }
+
+/* Web portal iframe */
+#inet-webview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #000;
+    display: none;
+}
+#inet-webview.visible { display: block; }
+#inet-viz-overlay { position: absolute; inset: 0; pointer-events: none; }
+</style>
+
+<div id="inet-root">
+
+    <!-- ── Top control bar ── -->
+    <div id="inet-topbar">
+        <span class="text-info fw-bold" style="font-size:0.8rem;white-space:nowrap;">
+            <i class="bi bi-globe2 me-1"></i> Internet Level
+        </span>
+        <div class="d-flex gap-1 ms-2">
+            <button class="btn btn-sm inet-view-btn active" id="btn-topo" onclick="setInetView('topo')">
+                <i class="bi bi-diagram-3"></i> Topology
+            </button>
+            <button class="btn btn-sm inet-view-btn" id="btn-globe" onclick="setInetView('globe')">
+                <i class="bi bi-globe2"></i> Globe
+            </button>
+        </div>
+
+        <!-- Legend inline -->
+        <div class="d-flex align-items-center gap-3 ms-auto" style="font-size:0.7rem;white-space:nowrap;flex-wrap:nowrap;">
+            <span><span class="inet-legend-dot" style="background:#dc3545;"></span>Tier-1 ISP</span>
+            <span><span class="inet-legend-dot" style="background:#0dcaf0;"></span>Cloud/CDN</span>
+            <span><span class="inet-legend-dot" style="background:#ffc107;"></span>IXP</span>
+            <span><span class="inet-legend-dot" style="background:#198754;"></span>SocialChain</span>
+        </div>
+
+        <!-- Stats inline -->
+        <div class="d-flex gap-3 ms-3" style="font-size:0.72rem;white-space:nowrap;">
+            <span class="text-info"><i class="bi bi-hdd-network me-1"></i><span id="inet-stat-nodes">–</span> nodes</span>
+            <span class="text-success"><i class="bi bi-arrow-left-right me-1"></i><span id="inet-stat-links">–</span> links</span>
+        </div>
+
+        <button class="btn btn-sm btn-outline-info sc-neon-btn ms-2" onclick="loadTopology()" title="Refresh topology">
+            <i class="bi bi-arrow-clockwise" id="inet-refresh-icon"></i>
+        </button>
+    </div>
+
+    <!-- ── Main body ── -->
+    <div id="inet-body">
+
+        <!-- Visualization -->
+        <div id="inet-viz">
+            <svg id="inet-svg"></svg>
+            <canvas id="inet-globe-canvas" style="display:none;width:100%;height:100%;"></canvas>
+            <div id="inet-tooltip"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <div id="inet-sidebar">
+
+            <!-- Sidebar tab bar -->
+            <div id="inet-sidebar-tabs">
+                <div class="inet-stab active" data-panel="search" onclick="switchSidebarTab(this,'search')">
+                    <i class="bi bi-search"></i> Search
+                </div>
+                <div class="inet-stab" data-panel="node" onclick="switchSidebarTab(this,'node')">
+                    <i class="bi bi-hdd-network"></i> Node
+                </div>
+                <div class="inet-stab" data-panel="chain" onclick="switchSidebarTab(this,'chain')">
+                    <i class="bi bi-boxes"></i> Chain
+                </div>
+            </div>
+
+            <div id="inet-sidebar-panels">
+
+                <!-- ── Search panel ── -->
+                <div class="inet-spanel active" id="spanel-search">
+                    <div id="inet-search-row">
+                        <input type="text" id="inet-search-input"
+                               placeholder="Search the web…"
+                               onkeydown="if(event.key==='Enter')doSearch()">
+                        <button id="inet-search-btn" onclick="doSearch()">
+                            <i class="bi bi-search"></i> Go
+                        </button>
+                    </div>
+                    <div class="d-flex gap-1 flex-wrap mb-2">
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.68rem;"
+                                onclick="quickSearch('blockchain technology')">Blockchain</button>
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.68rem;"
+                                onclick="quickSearch('decentralized internet')">Decentralized Web</button>
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.68rem;"
+                                onclick="quickSearch('smart contracts')">Smart Contracts</button>
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.68rem;"
+                                onclick="quickSearch('AI agents')">AI Agents</button>
+                    </div>
+                    <div id="inet-search-results">
+                        <p class="text-secondary small">Search the live web from here. Results are fetched via the SocialChain search proxy.</p>
+                    </div>
+                </div>
+
+                <!-- ── Node detail panel ── -->
+                <div class="inet-spanel" id="spanel-node">
+                    <div id="inet-node-info" class="text-secondary small">
+                        Click a node in the topology to see details.
+                    </div>
+                    <div id="inet-node-chain-entries">
+                        <div class="text-secondary small">No node selected.</div>
+                    </div>
+                </div>
+
+                <!-- ── Chain panel ── -->
+                <div class="inet-spanel" id="spanel-chain">
+                    <div class="text-secondary small fw-bold text-uppercase mb-2" style="letter-spacing:.04em;">
+                        <i class="bi bi-boxes text-info"></i> Live Chain
+                    </div>
+                    <div id="inet-chain-mini" class="text-secondary small">Loading…</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.inet-view-btn {
+    background: transparent;
+    border: 1px solid #495057;
+    color: #6c757d;
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    transition: all .15s;
+}
+.inet-view-btn.active, .inet-view-btn:hover {
+    border-color: #0dcaf0;
+    color: #0dcaf0;
+    background: rgba(13,202,240,0.08);
+}
+</style>
+
+<div id="inet-tooltip-global"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/d3.min.js') }}"></script>
+<script>
+const USER_DID = "{{ user_did }}";
+let topoData = null;
+let inetSimulation = null;
+let currentInetView = 'topo';
+
+const TIER_COLORS = {
+    'Tier 1 ISPs':          '#dc3545',
+    'Cloud / Hyperscalers': '#0dcaf0',
+    'Internet Exchange Points': '#ffc107',
+    'SocialChain Nodes':    '#198754',
+};
+
+const NODE_SIZES = {
+    'Tier 1 ISPs':          16,
+    'Cloud / Hyperscalers': 14,
+    'Internet Exchange Points': 12,
+    'SocialChain Nodes':    18,
+};
+
+/* ─── Sidebar tab switching ─── */
+function switchSidebarTab(el, panel) {
+    document.querySelectorAll('.inet-stab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.inet-spanel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    const panelEl = document.getElementById(`spanel-${panel}`);
+    if (panelEl) panelEl.classList.add('active');
+}
+
+/* ─── View toggle ─── */
+function setInetView(view) {
+    currentInetView = view;
+    document.querySelectorAll('.inet-view-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`btn-${view}`).classList.add('active');
+    const svgEl = document.getElementById('inet-svg');
+    const canvas = document.getElementById('inet-globe-canvas');
+    if (view === 'topo') {
+        svgEl.style.display = 'block';
+        canvas.style.display = 'none';
+        renderTopology();
+    } else {
+        svgEl.style.display = 'none';
+        canvas.style.display = 'block';
+        renderGlobe();
+    }
+}
+
+/* ─── Load topology data ─── */
+async function loadTopology() {
+    document.getElementById('inet-refresh-icon').style.transform = 'rotate(360deg)';
+    try {
+        const res = await fetch('/api/internet/topology');
+        if (res.ok) {
+            topoData = await res.json();
+            if (currentInetView === 'topo') renderTopology();
+            else renderGlobe();
+            updateInetStats();
+        }
+    } catch(e) {}
+    document.getElementById('inet-refresh-icon').style.transform = '';
+    loadChainMini();
+}
+
+function updateInetStats() {
+    if (!topoData) return;
+    const nodes = topoData.tiers.reduce((acc, t) => acc + t.nodes.length, 0);
+    document.getElementById('inet-stat-nodes').textContent = nodes;
+    document.getElementById('inet-stat-links').textContent = (topoData.links || []).length;
+}
+
+/* ─── Topology D3 render ─── */
+function renderTopology() {
+    if (!topoData) return;
+    const svgEl = document.getElementById('inet-svg');
+    const svg = d3.select('#inet-svg');
+    svg.selectAll('*').remove();
+
+    const W = svgEl.clientWidth  || 900;
+    const H = svgEl.clientHeight || 600;
+    svg.attr('viewBox', `0 0 ${W} ${H}`);
+
+    /* Build flat node and link arrays */
+    const nodes = [];
+    const tierIndex = {};
+    topoData.tiers.forEach(tier => {
+        tier.nodes.forEach(n => {
+            const node = {
+                id: n.id,
+                label: n.label,
+                region: n.region,
+                tier: tier.name,
+                color: TIER_COLORS[tier.name] || '#6c757d',
+                r: NODE_SIZES[tier.name] || 12,
+            };
+            nodes.push(node);
+            tierIndex[n.id] = node;
+        });
+    });
+
+    const links = (topoData.links || []).map(l => ({...l}));
+
+    /* D3 simulation */
+    if (inetSimulation) inetSimulation.stop();
+    inetSimulation = d3.forceSimulation(nodes)
+        .force('link',    d3.forceLink(links).id(d => d.id).distance(d => {
+            // SC<->other links slightly longer for visual separation
+            return (d.source.tier === 'SocialChain Nodes' || d.target && d.target.tier === 'SocialChain Nodes')
+                ? 110 : 70;
+        }))
+        .force('charge',  d3.forceManyBody().strength(-260))
+        .force('center',  d3.forceCenter(W / 2, H / 2))
+        .force('collide', d3.forceCollide(d => d.r + 8));
+
+    /* Glow defs */
+    const defs = svg.append('defs');
+    ['#dc3545','#0dcaf0','#ffc107','#198754'].forEach((col, i) => {
+        const f = defs.append('filter').attr('id', `glow${i}`).attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+        f.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+        const merge = f.append('feMerge');
+        merge.append('feMergeNode').attr('in', 'blur');
+        merge.append('feMergeNode').attr('in', 'SourceGraphic');
+    });
+
+    /* Zoom */
+    const g = svg.append('g');
+    svg.call(d3.zoom().scaleExtent([0.2, 5])
+        .on('zoom', e => g.attr('transform', e.transform)));
+
+    /* Background grid */
+    const gridG = g.append('g').attr('opacity', 0.04);
+    for (let x = 0; x < W * 2; x += 60) {
+        gridG.append('line').attr('x1', x).attr('y1', 0).attr('x2', x).attr('y2', H * 2)
+             .attr('stroke', '#0dcaf0').attr('stroke-width', 0.5);
+    }
+    for (let y = 0; y < H * 2; y += 60) {
+        gridG.append('line').attr('x1', 0).attr('y1', y).attr('x2', W * 2).attr('y2', y)
+             .attr('stroke', '#0dcaf0').attr('stroke-width', 0.5);
+    }
+
+    /* Links */
+    const isSCLink = l => {
+        const s = typeof l.source === 'object' ? l.source.tier : (tierIndex[l.source] || {}).tier;
+        const t = typeof l.target === 'object' ? l.target.tier : (tierIndex[l.target] || {}).tier;
+        return s === 'SocialChain Nodes' || t === 'SocialChain Nodes';
+    };
+
+    const link = g.append('g').selectAll('line').data(links).join('line')
+        .attr('stroke', d => isSCLink(d) ? '#198754' : '#0dcaf020')
+        .attr('stroke-width', d => isSCLink(d) ? 1.5 : 0.8)
+        .attr('stroke-dasharray', d => isSCLink(d) ? null : '4,3')
+        .attr('stroke-opacity', 0.7);
+
+    /* Tooltip */
+    const tooltip = document.getElementById('inet-tooltip');
+
+    /* Nodes */
+    const node = g.append('g').selectAll('g').data(nodes).join('g')
+        .style('cursor', 'pointer')
+        .call(d3.drag()
+            .on('start', (e, d) => { if (!e.active) inetSimulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end',   (e, d) => { if (!e.active) inetSimulation.alphaTarget(0); d.fx = null; d.fy = null; }))
+        .on('click', (e, d) => showNodeInfo(d))
+        .on('mousemove', (e, d) => {
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX + 12) + 'px';
+            tooltip.style.top  = (e.clientY - 8) + 'px';
+            tooltip.innerHTML = `<strong>${escH(d.label)}</strong><br/><span style="color:#6c757d;font-size:0.7rem;">${escH(d.tier)}</span><br/><span style="font-size:0.68rem;color:#adb5bd;">Region: ${escH(d.region)}</span>`;
+        })
+        .on('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    /* Pulse rings for SC nodes */
+    node.filter(d => d.tier === 'SocialChain Nodes')
+        .append('circle')
+        .attr('r', d => d.r + 8)
+        .attr('fill', 'none')
+        .attr('stroke', '#198754')
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.4)
+        .classed('sc-inet-pulse', true);
+
+    /* Main circles */
+    node.append('circle')
+        .attr('r', d => d.r)
+        .attr('fill', d => d.color + (d.tier === 'SocialChain Nodes' ? 'cc' : '22'))
+        .attr('stroke', d => d.color)
+        .attr('stroke-width', d => d.tier === 'SocialChain Nodes' ? 2.5 : 1.5)
+        .attr('filter', (d, i) => {
+            const fi = ['#dc3545','#0dcaf0','#ffc107','#198754'].indexOf(d.color);
+            return fi >= 0 ? `url(#glow${fi})` : null;
+        });
+
+    /* Labels */
+    node.append('text')
+        .attr('dy', d => d.r + 12)
+        .attr('text-anchor', 'middle')
+        .attr('fill', d => d.color)
+        .attr('font-size', d => d.tier === 'SocialChain Nodes' ? 11 : 9.5)
+        .attr('opacity', 0.9)
+        .text(d => d.label.length > 16 ? d.label.slice(0, 15) + '…' : d.label);
+
+    /* Tick */
+    inetSimulation.on('tick', () => {
+        link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+}
+
+/* ─── Globe (canvas) render ─── */
+function renderGlobe() {
+    const canvas = document.getElementById('inet-globe-canvas');
+    canvas.width  = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const R = Math.min(W, H) * 0.38;
+
+    /* Approximate lat/lon for topology nodes */
+    const GEO = {
+        'att':        [37, -100],  'ntt':    [35,  139],  'lumen':  [39, -104],
+        'telia':      [59,   18],  'cogent': [38,  -77],  'telecom_italia': [41, 12],
+        'verizon':    [40,  -74],  'aws':    [ 0,    0],  'azure':  [47,  -122],
+        'gcp':        [37, -122],  'cloudflare': [0, 0],  'fastly': [37, -122],
+        'akamai':     [42,  -71],  'ams_ix': [52,    5],  'de_cix': [50,    9],
+        'linx':       [51,    0],  'nap_americas': [25, -80], 'equinix': [37, -122],
+        'sc_main':    [51,    0],  'sc_peer_eu': [50, 10], 'sc_peer_us': [40, -100],
+        'sc_peer_ap': [35,  140],
+    };
+
+    let angle = 0;
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        /* Globe background */
+        const grad = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R);
+        grad.addColorStop(0, 'rgba(13,50,90,0.5)');
+        grad.addColorStop(1, 'rgba(3,8,16,0.95)');
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(13,202,240,0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        /* Grid lines */
+        ctx.strokeStyle = 'rgba(13,202,240,0.07)';
+        ctx.lineWidth = 0.5;
+        for (let lat = -75; lat <= 75; lat += 30) {
+            const y = cy - Math.sin(lat * Math.PI / 180) * R;
+            const rLat = Math.cos(lat * Math.PI / 180) * R;
+            ctx.beginPath();
+            ctx.ellipse(cx, y, rLat, rLat * 0.12, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        for (let lon = 0; lon < 360; lon += 30) {
+            const lonR = (lon + angle) * Math.PI / 180;
+            ctx.beginPath();
+            for (let lat = -90; lat <= 90; lat += 3) {
+                const latR = lat * Math.PI / 180;
+                const x = cx + R * Math.cos(latR) * Math.sin(lonR);
+                const y = cy - R * Math.sin(latR);
+                if (lat === -90) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        /* Project lat/lon to canvas */
+        function project(lat, lon) {
+            const lonAdj = (lon + angle) * Math.PI / 180;
+            const latR = lat * Math.PI / 180;
+            const x = cx + R * Math.cos(latR) * Math.sin(lonAdj);
+            const y = cy - R * Math.sin(latR);
+            const visible = Math.cos(latR) * Math.cos(lonAdj) > -0.3;
+            return { x, y, visible };
+        }
+
+        if (!topoData) { requestAnimationFrame(draw); angle += 0.12; return; }
+
+        /* Build map id -> coords */
+        const projected = {};
+        topoData.tiers.forEach(tier => {
+            tier.nodes.forEach(n => {
+                const geo = GEO[n.id] || [0, 0];
+                projected[n.id] = {
+                    ...project(geo[0], geo[1]),
+                    label: n.label,
+                    color: TIER_COLORS[tier.name] || '#6c757d',
+                    tier: tier.name,
+                };
+            });
+        });
+
+        /* Links */
+        (topoData.links || []).forEach(l => {
+            const a = projected[l.source], b = projected[l.target];
+            if (!a || !b || !a.visible || !b.visible) return;
+            const isSC = a.tier === 'SocialChain Nodes' || b.tier === 'SocialChain Nodes';
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = isSC ? 'rgba(25,135,84,0.6)' : 'rgba(13,202,240,0.12)';
+            ctx.lineWidth = isSC ? 1.2 : 0.5;
+            ctx.stroke();
+        });
+
+        /* Nodes */
+        Object.values(projected).forEach(n => {
+            if (!n.visible) return;
+            const r = n.tier === 'SocialChain Nodes' ? 7 : 5;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = n.color;
+            ctx.shadowColor = n.color;
+            ctx.shadowBlur = n.tier === 'SocialChain Nodes' ? 12 : 4;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            if (n.tier === 'SocialChain Nodes') {
+                ctx.font = '9px monospace';
+                ctx.fillStyle = '#198754';
+                ctx.fillText(n.label.slice(0, 14), n.x + r + 3, n.y + 3);
+            }
+        });
+
+        angle += 0.06;
+        requestAnimationFrame(draw);
+    }
+    draw();
+}
+
+/* ─── Node info panel ─── */
+function showNodeInfo(node) {
+    switchSidebarTab(document.querySelector('.inet-stab[data-panel="node"]'), 'node');
+    const el = document.getElementById('inet-node-info');
+    const colorDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${escH(node.color)};margin-right:5px;"></span>`;
+    el.innerHTML = `
+        <div class="fw-bold text-light mb-1">${colorDot}${escH(node.label)}</div>
+        <div class="text-secondary mb-1">
+            <span class="badge" style="background:${escH(node.color)}22;color:${escH(node.color)};border:1px solid ${escH(node.color)}50;">${escH(node.tier)}</span>
+        </div>
+        <div style="font-size:0.7rem;">
+            <span class="text-secondary">Region: </span><span class="text-light">${escH(node.region || '–')}</span>
+        </div>
+        <div style="font-size:0.7rem;">
+            <span class="text-secondary">Node ID: </span><code class="text-warning">${escH(node.id)}</code>
+        </div>`;
+
+    const chainEl = document.getElementById('inet-node-chain-entries');
+    if (node.tier === 'SocialChain Nodes') {
+        chainEl.innerHTML = `
+            <div class="text-secondary small fw-bold text-uppercase mb-1" style="letter-spacing:.04em;">
+                <i class="bi bi-link-45deg text-info"></i> SocialChain Link
+            </div>
+            <div class="text-info small">
+                This node is part of the SocialChain peer mesh.
+                All transactions passing through this peer are anchored on the shared chain.
+            </div>`;
+    } else {
+        chainEl.innerHTML = `<div class="text-secondary small">Not a SocialChain node. Internet infrastructure only.</div>`;
+    }
+}
+
+/* ─── Chain mini panel ─── */
+async function loadChainMini() {
+    const el = document.getElementById('inet-chain-mini');
+    try {
+        const res = await fetch('/api/chain');
+        if (!res.ok) return;
+        const data = await res.json();
+        const blocks = (data.chain || []).slice(-6).reverse();
+        el.innerHTML = blocks.map(b => `
+            <div style="border-left:2px solid rgba(13,202,240,0.25);padding:4px 8px;margin-bottom:5px;">
+                <div class="text-info" style="font-size:0.72rem;">Block #${b.index}</div>
+                <div class="text-secondary" style="font-size:0.67rem;">
+                    <code>${(b.hash||'').slice(0,20)}…</code>
+                    · ${(b.transactions||[]).length} tx
+                </div>
+            </div>`).join('') || '<span class="text-secondary">No blocks yet.</span>';
+    } catch(e) {}
+}
+
+/* ─── Web search ─── */
+async function doSearch() {
+    const q = document.getElementById('inet-search-input').value.trim();
+    if (!q) return;
+    await performSearch(q);
+}
+
+function quickSearch(q) {
+    document.getElementById('inet-search-input').value = q;
+    performSearch(q);
+}
+
+async function performSearch(q) {
+    const el = document.getElementById('inet-search-results');
+    el.innerHTML = `<div class="text-secondary small"><span class="spinner-border spinner-border-sm me-1"></span>Searching for <em>${escH(q)}</em>…</div>`;
+    try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=10`);
+        const data = await res.json();
+        if (data.error) {
+            el.innerHTML = `<div class="text-danger small">${escH(data.error)}</div>`;
+            return;
+        }
+        const results = data.results || [];
+        if (!results.length) {
+            el.innerHTML = `<div class="text-secondary small">No results found for <em>${escH(q)}</em>.</div>`;
+            return;
+        }
+        el.innerHTML = `
+            <div class="text-secondary mb-2" style="font-size:0.68rem;">
+                ${results.length} result(s) for <strong class="text-light">${escH(q)}</strong>
+            </div>
+            ${results.map(r => `
+                <div class="inet-result">
+                    ${r.url
+                        ? `<a href="${escH(r.url)}" target="_blank" rel="noopener noreferrer">${escH(r.title || r.url)}</a>`
+                        : `<span class="fw-semibold text-light" style="font-size:0.8rem;">${escH(r.title || 'Result')}</span>`
+                    }
+                    <p>${escH(r.snippet || '').slice(0, 180)}${(r.snippet||'').length > 180 ? '…' : ''}</p>
+                    ${r.url ? `<div class="inet-src">${escH(r.url.slice(0, 60))}${r.url.length > 60 ? '…' : ''}</div>` : ''}
+                </div>`).join('')}`;
+    } catch(e) {
+        el.innerHTML = `<div class="text-danger small">Search failed: ${escH(String(e))}</div>`;
+    }
+}
+
+function escH(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ─── Boot ─── */
+document.addEventListener('DOMContentLoaded', () => {
+    loadTopology();
+    setInterval(loadChainMini, 15000);
+});
+</script>
+{% endblock %}
