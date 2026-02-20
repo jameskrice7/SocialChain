@@ -62,6 +62,10 @@
                         <input type="password" class="form-control bg-dark text-light border-secondary"
                                name="password" required autocomplete="current-password">
                     </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input border-secondary" name="remember_me" id="rememberMe">
+                        <label class="form-check-label text-secondary small" for="rememberMe">Remember me</label>
+                    </div>
                     <button type="submit" class="btn btn-info w-100 mt-2">
                         <i class="bi bi-box-arrow-in-right"></i> Login
                     </button>
@@ -72,6 +76,14 @@
                         No account?
                         <a href="{{ url_for('auth.register') }}" class="text-info text-decoration-none">Create your node identity</a>
                     </small>
+                </div>
+                <hr class="border-secondary my-2">
+                <div class="text-center">
+                    <small class="text-secondary d-block mb-1">Don't have the desktop app yet?</small>
+                    <a href="https://github.com/jameskrice7/SocialChain/releases/latest"
+                       target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="bi bi-download"></i> Download SocialChain
+                    </a>
                 </div>
             </div>
         </div>

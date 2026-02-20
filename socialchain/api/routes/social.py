@@ -131,9 +131,11 @@ def update_social_links(did):
     if not data:
         return jsonify({"error": "No data provided"}), 400
     from urllib.parse import urlparse
-    allowed = {"facebook", "linkedin", "instagram", "youtube"}
+    allowed = {"facebook", "linkedin", "instagram", "youtube", "twitter"}
+    # Accept either {"social_links": {platform: url, …}} or flat {platform: url, …}
+    raw_links = data.get("social_links") if isinstance(data.get("social_links"), dict) else data
     links = {}
-    for k, v in data.items():
+    for k, v in raw_links.items():
         if k not in allowed:
             continue
         if not isinstance(v, str):
@@ -146,7 +148,41 @@ def update_social_links(did):
     return jsonify({"message": "Social links updated", "social_links": profile.metadata["social_links"]}), 200
 
 
-@social_bp.route("/api/social/external-contacts", methods=["POST"])
+@social_bp.route("/api/social/profiles/<path:did>/iot-devices", methods=["POST"])
+def add_iot_device(did):
+    """Register an IoT / physical-world device for a profile."""
+    state = current_app.app_state
+    profile = state.network_map.get_profile(did)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    name = str(data.get("name", "")).strip()[:128]
+    if not name:
+        return jsonify({"error": "Device name is required"}), 400
+    allowed_types = {"sensor", "gateway", "actuator", "camera", "other"}
+    device_type = str(data.get("type", "other")).lower()
+    if device_type not in allowed_types:
+        return jsonify({"error": f"type must be one of {sorted(allowed_types)}"}), 400
+    location = str(data.get("location", ""))[:128].strip()
+    status = "online" if data.get("status") == "online" else "offline"
+    device = {
+        "name": name,
+        "type": device_type,
+        "location": location,
+        "status": status,
+    }
+    devices = profile.metadata.setdefault("iot_devices", [])
+    devices.append(device)
+    # Record the device registration as a blockchain transaction
+    tx = Transaction(
+        sender=did,
+        recipient="NETWORK",
+        data={"type": "device_registration", "device_name": name, "device_type": device_type},
+    )
+    state.blockchain.add_transaction(tx)
+    return jsonify({"message": "Device registered", "device": device}), 201
 def add_external_contact():
     """Add an external (non-SocialChain) contact discovered from social platforms."""
     state = current_app.app_state
@@ -160,7 +196,7 @@ def add_external_contact():
     profile = state.network_map.get_profile(owner_did)
     if not profile:
         return jsonify({"error": "Owner profile not found"}), 404
-    allowed_platforms = {"facebook", "linkedin", "instagram", "youtube"}
+    allowed_platforms = {"facebook", "linkedin", "instagram", "youtube", "twitter"}
     name = str(data["name"])[:128].strip()
     platform = str(data["platform"]).lower()
     if platform not in allowed_platforms:

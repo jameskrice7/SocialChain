@@ -55,6 +55,8 @@ def register():
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
         agent_type = request.form.get("agent_type", "human")
+        display_name = request.form.get("display_name", "").strip() or username
+        bio = request.form.get("bio", "").strip()[:280]
         state = current_app.app_state
         if not username or not password:
             flash("Username and password are required", "error")
@@ -68,7 +70,21 @@ def register():
             state.did_to_username[user.did] = username
             # Auto-create a profile for the user
             dtype = DeviceType.AGENT if agent_type == "ai" else DeviceType.HUMAN
-            profile = Profile(did=user.did, display_name=username, device_type=dtype)
+            metadata = {}
+            if bio:
+                metadata["bio"] = bio
+            # Optional social links from registration form
+            from urllib.parse import urlparse as _urlparse
+            social_links = {}
+            for platform in ("facebook", "linkedin", "instagram", "youtube", "twitter"):
+                url_val = request.form.get(f"sl_{platform}", "").strip()
+                if url_val:
+                    parsed = _urlparse(url_val)
+                    if parsed.scheme in ("http", "https") and parsed.netloc:
+                        social_links[platform] = url_val
+            if social_links:
+                metadata["social_links"] = social_links
+            profile = Profile(did=user.did, display_name=display_name, device_type=dtype, metadata=metadata)
             state.network_map.add_profile(profile)
             session["user_did"] = user.did
             session["username"] = user.username

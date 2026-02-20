@@ -30,6 +30,12 @@
                 <span class="badge bg-success ms-1">You</span>
                 {% endif %}
 
+                {# Bio #}
+                {% if profile.metadata and profile.metadata.get('bio') %}
+                <p class="text-secondary mt-2 mb-0" style="font-size:0.8rem;font-style:italic;">
+                    {{ profile.metadata.bio }}</p>
+                {% endif %}
+
                 <hr class="border-secondary">
 
                 {# Blockchain verification badge #}
@@ -145,6 +151,10 @@
                             <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary" id="sl-youtube" placeholder="https://youtube.com/..." value="{{ sl.get('youtube', '') }}">
                         </div>
                         <div class="col-12">
+                            <label class="form-label text-secondary small"><i class="bi bi-twitter-x"></i> Twitter / X</label>
+                            <input type="url" class="form-control form-control-sm bg-dark text-light border-secondary" id="sl-twitter" placeholder="https://x.com/..." value="{{ sl.get('twitter', '') }}">
+                        </div>
+                        <div class="col-12">
                             <button type="button" class="btn btn-sm btn-outline-info" onclick="saveSocialLinks()">
                                 <i class="bi bi-save"></i> Save Links
                             </button>
@@ -176,6 +186,12 @@
                     {% if sl.get('youtube') %}
                     <a href="{{ sl.youtube }}" target="_blank" rel="noopener" class="sc-social-badge youtube text-decoration-none">
                         <i class="bi bi-youtube"></i> YouTube
+                    </a>
+                    {% endif %}
+                    {% if sl.get('twitter') %}
+                    <a href="{{ sl.twitter }}" target="_blank" rel="noopener" class="sc-social-badge text-decoration-none"
+                       style="background:rgba(29,161,242,0.12);border-color:#1da1f2;color:#1da1f2;">
+                        <i class="bi bi-twitter-x"></i> Twitter / X
                     </a>
                     {% endif %}
                 </div>
@@ -259,6 +275,95 @@
             </div>
         </div>
 
+        {# Post Status Update card (own profile only) #}
+        {% if did == user_did %}
+        <div class="card bg-black border-secondary mb-3">
+            <div class="card-header border-secondary"><i class="bi bi-broadcast"></i> Post Status Update</div>
+            <div class="card-body">
+                <form id="status-form" class="d-flex flex-column gap-2">
+                    <textarea class="form-control bg-dark text-light border-secondary" id="status-message"
+                              rows="2" maxlength="280" placeholder="What's happening on the network? (max 280 chars)"></textarea>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="submit" class="btn btn-sm btn-outline-info">
+                            <i class="bi bi-broadcast"></i> Broadcast to Chain
+                        </button>
+                        <span id="status-result" class="small"></span>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {# IoT Devices card (own profile only) #}
+        {% if did == user_did %}
+        <div class="card bg-black border-secondary mb-3">
+            <div class="card-header border-secondary d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-cpu"></i> Connected Devices <span class="text-secondary" style="font-size:0.75rem;">(IoT / Physical World)</span></span>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#iot-add-form" aria-expanded="false">
+                    <i class="bi bi-plus"></i> Add
+                </button>
+            </div>
+            <div class="card-body">
+                {% set devices = profile.metadata.get('iot_devices', []) if profile.metadata else [] %}
+                {% if devices %}
+                <div class="row g-2 mb-3">
+                    {% for dev in devices %}
+                    <div class="col-12">
+                        <div class="d-flex align-items-center gap-2 p-2 rounded bg-dark border border-secondary">
+                            {% if dev.type == 'sensor' %}
+                            <i class="bi bi-thermometer text-info fs-5"></i>
+                            {% elif dev.type == 'gateway' %}
+                            <i class="bi bi-router text-info fs-5"></i>
+                            {% elif dev.type == 'camera' %}
+                            <i class="bi bi-camera-video text-info fs-5"></i>
+                            {% elif dev.type == 'actuator' %}
+                            <i class="bi bi-toggles text-info fs-5"></i>
+                            {% else %}
+                            <i class="bi bi-cpu text-info fs-5"></i>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <div class="text-light small fw-bold">{{ dev.name }}</div>
+                                <div class="text-secondary" style="font-size:0.68rem;">{{ dev.type | title }} · {{ dev.location or 'Location unknown' }}</div>
+                            </div>
+                            <span class="badge {{ 'bg-success' if dev.get('status') == 'online' else 'bg-secondary' }}">
+                                {{ dev.get('status', 'unknown') }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-secondary small mb-2">No IoT devices registered yet.</p>
+                {% endif %}
+                <div class="collapse" id="iot-add-form">
+                    <form id="iot-form" class="row g-2 mt-1">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" id="iot-name" placeholder="Device name" required>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm bg-dark text-light border-secondary" id="iot-type">
+                                <option value="sensor">Sensor</option>
+                                <option value="gateway">Gateway / Router</option>
+                                <option value="actuator">Actuator</option>
+                                <option value="camera">Camera</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" id="iot-location" placeholder="Location (optional)">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-sm btn-info">
+                                <i class="bi bi-plus-circle"></i> Register Device
+                            </button>
+                            <span id="iot-result" class="ms-2 small"></span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {# Recent Blockchain Activity card #}
         <div class="card bg-black border-secondary">
             <div class="card-header border-secondary"><i class="bi bi-activity"></i> Recent Blockchain Activity</div>
@@ -335,7 +440,8 @@ async function saveSocialLinks() {
         facebook:  document.getElementById('sl-facebook').value.trim(),
         linkedin:  document.getElementById('sl-linkedin').value.trim(),
         instagram: document.getElementById('sl-instagram').value.trim(),
-        youtube:   document.getElementById('sl-youtube').value.trim()
+        youtube:   document.getElementById('sl-youtube').value.trim(),
+        twitter:   document.getElementById('sl-twitter').value.trim(),
     };
     Object.keys(links).forEach(k => { if (!links[k]) delete links[k]; });
     el.className = 'text-secondary';
@@ -372,6 +478,69 @@ document.querySelectorAll('.sc-invite-btn').forEach(btn => {
         // Mark invited via a simple UI update (no separate invite endpoint needed)
         this.outerHTML = '<span class="badge bg-success">Invited ✓</span>';
     });
+});
+
+// Post status update to blockchain
+document.getElementById('status-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('status-message').value.trim();
+    const el = document.getElementById('status-result');
+    if (!msg) { el.className = 'text-danger'; el.textContent = 'Message required.'; return; }
+    el.className = 'text-secondary'; el.textContent = 'Broadcasting…';
+    try {
+        const res = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                sender: USER_DID,
+                recipient: 'NETWORK',
+                data: {type: 'status_update', message: msg, timestamp: Date.now() / 1000}
+            })
+        });
+        const result = await res.json();
+        if (res.ok) {
+            el.className = 'text-success';
+            el.textContent = 'Broadcast to blockchain!';
+            document.getElementById('status-message').value = '';
+            setTimeout(() => loadActivity(), 1200);
+        } else {
+            el.className = 'text-danger';
+            el.textContent = result.error || 'Broadcast failed.';
+        }
+    } catch (err) {
+        el.className = 'text-danger';
+        el.textContent = 'Network error.';
+    }
+});
+
+// Register IoT device
+document.getElementById('iot-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name     = document.getElementById('iot-name').value.trim();
+    const type     = document.getElementById('iot-type').value;
+    const location = document.getElementById('iot-location').value.trim();
+    const el = document.getElementById('iot-result');
+    if (!name) { el.className = 'text-danger'; el.textContent = 'Device name required.'; return; }
+    el.className = 'text-secondary'; el.textContent = 'Registering…';
+    try {
+        const res = await fetch('/api/social/profiles/' + encodeURIComponent(USER_DID) + '/iot-devices', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, type, location, status: 'online'})
+        });
+        const result = await res.json();
+        if (res.ok) {
+            el.className = 'text-success';
+            el.textContent = 'Device registered!';
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            el.className = 'text-danger';
+            el.textContent = result.error || 'Registration failed.';
+        }
+    } catch (err) {
+        el.className = 'text-danger';
+        el.textContent = 'Network error.';
+    }
 });
 {% endif %}
 
