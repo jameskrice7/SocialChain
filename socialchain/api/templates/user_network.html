@@ -13,11 +13,12 @@
 #sc-earth-topbar {
     flex-shrink:0; display:flex; align-items:center;
     justify-content:space-between; gap:.5rem; padding:.45rem 1rem;
-    background:rgba(0,0,10,.95); border-bottom:1px solid rgba(13,202,240,.15);
+    background:rgba(0,0,10,.78); backdrop-filter:blur(12px);
+    border-bottom:1px solid rgba(13,202,240,.18);
     z-index:20; flex-wrap:wrap;
 }
-#sc-earth-main { flex:1; display:flex; position:relative; overflow:hidden; }
-#sc-earth-canvas-wrap { flex:1; position:relative; overflow:hidden; }
+#sc-earth-main { flex:1; position:relative; overflow:hidden; }
+#sc-earth-canvas-wrap { position:absolute; inset:0; overflow:hidden; }
 #sc-earth-canvas-wrap canvas { display:block; }
 #sc-earth-loading {
     position:absolute; inset:0; display:flex; flex-direction:column;
@@ -27,8 +28,10 @@
 }
 #sc-earth-loading.hidden { opacity:0; pointer-events:none; }
 #sc-earth-sidebar {
-    width:280px; flex-shrink:0; background:rgba(5,5,18,.97);
-    border-left:1px solid rgba(13,202,240,.12);
+    position:absolute; top:0; right:0; bottom:0;
+    width:280px; background:rgba(4,4,16,.88);
+    backdrop-filter:blur(14px);
+    border-left:1px solid rgba(13,202,240,.18);
     display:flex; flex-direction:column; overflow:hidden;
     transition:width .25s; z-index:10;
 }
@@ -214,7 +217,7 @@ const LAYER = {
 const AI_COL=0xffc107, SELF_COL=0xa78bfa;
 let scene,camera,renderer,controls,earthMesh,cloudMesh,atmMesh,raycaster,mouse;
 let layerGroups={},layerVisible={space:true,human:true,internet:true,physical:true};
-let allNodes=[],allMeshes=[],connLines=null,scNodes=[],autoRot=true,hoverNd=null;
+let allNodes=[],allMeshes=[],connLines=null,connLineGroups=[],scNodes=[],autoRot=true,hoverNd=null;
 const clock=new THREE.Clock();
 function init(){
     const wrap=document.getElementById('sc-earth-canvas-wrap');
@@ -239,10 +242,11 @@ function init(){
     requestAnimationFrame(animate);
 }
 function buildStars(){
-    const N=4000,pos=new Float32Array(N*3);
-    for(let i=0;i<N;i++){const phi=Math.acos(2*Math.random()-1),t=Math.random()*Math.PI*2,r=90+Math.random()*130;pos[i*3]=r*Math.sin(phi)*Math.cos(t);pos[i*3+1]=r*Math.sin(phi)*Math.sin(t);pos[i*3+2]=r*Math.cos(phi);}
-    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-    scene.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:0.11,sizeAttenuation:true,transparent:true,opacity:0.75})));
+    const N=5000,pos=new Float32Array(N*3),col=new Float32Array(N*3);
+    const starColors=[[1,1,1],[.8,.9,1],[1,.95,.85],[.7,.8,1],[1,.85,.7]];
+    for(let i=0;i<N;i++){const phi=Math.acos(2*Math.random()-1),t=Math.random()*Math.PI*2,r=85+Math.random()*140;pos[i*3]=r*Math.sin(phi)*Math.cos(t);pos[i*3+1]=r*Math.sin(phi)*Math.sin(t);pos[i*3+2]=r*Math.cos(phi);const sc=starColors[Math.floor(Math.random()*starColors.length)];col[i*3]=sc[0];col[i*3+1]=sc[1];col[i*3+2]=sc[2];}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+    scene.add(new THREE.Points(geo,new THREE.PointsMaterial({size:0.10,sizeAttenuation:true,transparent:true,opacity:0.80,vertexColors:true})));
 }
 function buildEarth(){
     const texW=1024,texH=512,cv=document.createElement('canvas');cv.width=texW;cv.height=texH;
@@ -266,8 +270,13 @@ function buildEarth(){
     cx.strokeStyle='rgba(80,160,255,0.07)';cx.lineWidth=.6;
     for(let x=0;x<texW;x+=texW/12){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,texH);cx.stroke();}
     for(let y=0;y<texH;y+=texH/6){cx.beginPath();cx.moveTo(0,y);cx.lineTo(texW,y);cx.stroke();}
-    cx.globalAlpha=.35;cx.fillStyle='#ffe090';
-    [[215,95],[490,75],[520,88],[600,76],[640,78],[488,158],[502,198],[218,268],[722,293]].forEach(([x,y])=>{cx.beginPath();cx.arc(x,y,3.5,0,Math.PI*2);cx.fill();});
+    cx.globalAlpha=.42;cx.fillStyle='#ffe090';
+    // Major city lights across continents
+    [[215,95],[490,75],[520,88],[600,76],[640,78],[488,158],[502,198],[218,268],[722,293],
+     [175,115],[225,135],[300,90],[350,80],[420,100],[560,120],[610,140],[670,160],[190,200],
+     [240,185],[370,175],[445,185],[515,210],[565,230],[620,220],[700,200],[760,250],
+     [200,270],[280,265],[340,250],[480,260],[530,285],[590,310],[650,280],[730,310]
+    ].forEach(([x,y])=>{cx.beginPath();cx.arc(x,y,2.5,0,Math.PI*2);cx.fill();});
     cx.globalAlpha=1;
     earthMesh=new THREE.Mesh(new THREE.SphereGeometry(EARTH_R,64,32),new THREE.MeshPhongMaterial({map:new THREE.CanvasTexture(cv),specular:new THREE.Color(0x1a4a8a),shininess:22,emissive:new THREE.Color(0x050a14),emissiveIntensity:0.35}));
     scene.add(earthMesh);
@@ -275,9 +284,9 @@ function buildEarth(){
     for(let i=0;i<65;i++){ccx.globalAlpha=Math.random()*.28+.08;ccx.fillStyle='rgba(255,255,255,.55)';ccx.beginPath();ccx.ellipse(Math.random()*512,Math.random()*256,Math.random()*32+6,Math.random()*16+4,Math.random()*Math.PI,0,Math.PI*2);ccx.fill();}
     cloudMesh=new THREE.Mesh(new THREE.SphereGeometry(EARTH_R*1.008,48,24),new THREE.MeshPhongMaterial({map:new THREE.CanvasTexture(ccv),transparent:true,opacity:0.38,depthWrite:false}));
     scene.add(cloudMesh);
-    atmMesh=new THREE.Mesh(new THREE.SphereGeometry(EARTH_R*1.09,32,16),new THREE.ShaderMaterial({
+    atmMesh=new THREE.Mesh(new THREE.SphereGeometry(EARTH_R*1.12,32,16),new THREE.ShaderMaterial({
         vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-        fragmentShader:'varying vec3 vN;void main(){float i=pow(.72-dot(vN,vec3(0.,0.,1.)),3.2);gl_FragColor=vec4(.12,.50,1.,clamp(i*.9,0.,1.));}',
+        fragmentShader:'varying vec3 vN;void main(){float i=pow(.68-dot(vN,vec3(0.,0.,1.)),2.8);gl_FragColor=vec4(.10,.55,1.,clamp(i*1.1,0.,1.));}',
         side:THREE.FrontSide,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}));
     scene.add(atmMesh);
     const sun=new THREE.DirectionalLight(0xfff0d8,1.9);sun.position.set(12,6,9);scene.add(sun);
@@ -300,6 +309,7 @@ function makeNodeMesh(layer,color,size){
 }
 function buildAllNodes(scData){
     allNodes=[];allMeshes=[];Object.values(layerGroups).forEach(g=>{while(g.children.length)g.remove(g.children[0]);});
+    connLineGroups.forEach(l=>{if(l)scene.remove(l);});connLineGroups=[];
     if(connLines){scene.remove(connLines);connLines=null;}
     const spaceList=[
         {icon:'\u{1F6F0}',name:'GPS Constellation',sub:'Navigation'},
@@ -355,18 +365,32 @@ function buildAllNodes(scData){
     buildConnections();updateStats();renderNodesList();
 }
 function buildConnections(){
-    const segs=[];
-    function nearLinks(lk,mP,mD){const nodes=allNodes.filter(n=>n.layer===lk);nodes.forEach(a=>{nodes.map(b=>({b,d:a.pos.distanceTo(b.pos)})).filter(({b,d})=>b!==a&&d<mD).sort((x,y)=>x.d-y.d).slice(0,mP).forEach(({b})=>segs.push(a.pos.x,a.pos.y,a.pos.z,b.pos.x,b.pos.y,b.pos.z));});}
-    nearLinks('physical',3,2.8);nearLinks('internet',6,1.9);nearLinks('space',2,5.5);
+    // Per-layer colored segment arrays: [segments, hex color, opacity]
+    const phy=[], inet=[], hum=[], spc=[], cross=[];
+    const pNd=allNodes.filter(n=>n.layer==='physical');
+    const iNd=allNodes.filter(n=>n.layer==='internet');
     const hNd=allNodes.filter(n=>n.layer==='human');
-    hNd.forEach((a,i)=>{hNd.slice(i+1).filter(()=>Math.random()<.3).slice(0,3).forEach(b=>segs.push(a.pos.x,a.pos.y,a.pos.z,b.pos.x,b.pos.y,b.pos.z));});
-    const pNd=allNodes.filter(n=>n.layer==='physical'),iNd=allNodes.filter(n=>n.layer==='internet');
-    pNd.forEach(p=>{iNd.filter(()=>Math.random()<.11).slice(0,2).forEach(q=>segs.push(p.pos.x,p.pos.y,p.pos.z,q.pos.x,q.pos.y,q.pos.z));});
-    iNd.forEach(p=>{hNd.filter(()=>Math.random()<.055).slice(0,2).forEach(q=>segs.push(p.pos.x,p.pos.y,p.pos.z,q.pos.x,q.pos.y,q.pos.z));});
-    allNodes.filter(n=>n.layer==='space').forEach(s=>{pNd.filter(()=>Math.random()<.18).slice(0,2).forEach(p=>segs.push(s.pos.x,s.pos.y,s.pos.z,p.pos.x,p.pos.y,p.pos.z));});
-    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(segs,3));
-    connLines=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x0dcaf0,transparent:true,opacity:.10,blending:THREE.AdditiveBlending,depthWrite:false}));
-    scene.add(connLines);document.getElementById('stat-links').textContent=Math.round(segs.length/6);
+    const sNd=allNodes.filter(n=>n.layer==='space');
+    function nearLinks(src,dest,maxPeers,maxDist){src.forEach(a=>{src.filter(b=>b!==a).map(b=>({b,d:a.pos.distanceTo(b.pos)})).filter(({d})=>d<maxDist).sort((x,y)=>x.d-y.d).slice(0,maxPeers).forEach(({b})=>dest.push(a.pos.x,a.pos.y,a.pos.z,b.pos.x,b.pos.y,b.pos.z));});}
+    nearLinks(pNd,phy,3,2.8);
+    nearLinks(iNd,inet,7,1.9); // dense internet mesh
+    nearLinks(sNd,spc,2,5.5);
+    hNd.forEach((a,i)=>{hNd.slice(i+1).filter(()=>Math.random()<.35).slice(0,3).forEach(b=>hum.push(a.pos.x,a.pos.y,a.pos.z,b.pos.x,b.pos.y,b.pos.z));});
+    // Cross-layer: physical↔internet, internet↔human, space↔physical
+    pNd.forEach(p=>{iNd.filter(()=>Math.random()<.12).slice(0,2).forEach(q=>cross.push(p.pos.x,p.pos.y,p.pos.z,q.pos.x,q.pos.y,q.pos.z));});
+    iNd.forEach(p=>{hNd.filter(()=>Math.random()<.06).slice(0,2).forEach(q=>cross.push(p.pos.x,p.pos.y,p.pos.z,q.pos.x,q.pos.y,q.pos.z));});
+    sNd.forEach(s=>{pNd.filter(()=>Math.random()<.20).slice(0,2).forEach(p=>cross.push(s.pos.x,s.pos.y,s.pos.z,p.pos.x,p.pos.y,p.pos.z));});
+    const layers2=[{segs:phy,color:0xff6b35,opacity:.14},{segs:inet,color:0x0dcaf0,opacity:.09},{segs:hum,color:0x25c17a,opacity:.18},{segs:spc,color:0xc0d4ff,opacity:.13},{segs:cross,color:0x4488cc,opacity:.06}];
+    let totalLinks=0;
+    connLineGroups=layers2.map(({segs,color,opacity})=>{
+        if(!segs.length)return null;
+        totalLinks+=segs.length/6;
+        const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(segs,3));
+        const ls=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false}));
+        scene.add(ls);return ls;
+    }).filter(Boolean);
+    connLines=connLineGroups[0]||null;
+    document.getElementById('stat-links').textContent=Math.round(totalLinks);
 }
 function updateStats(){
     document.getElementById('stat-total').textContent=allNodes.length;document.getElementById('stat-sc').textContent=allNodes.filter(n=>n.layer==='human').length;
@@ -424,9 +448,30 @@ document.getElementById('btn-reset').addEventListener('click',()=>{autoRot=true;
 document.getElementById('btn-autorot').addEventListener('click',function(){autoRot=!autoRot;controls.autoRotate=autoRot;this.classList.toggle('active',autoRot);});
 document.getElementById('btn-refresh').addEventListener('click',loadData);
 const sbBtn=document.getElementById('sc-sb-toggle');
-sbBtn.addEventListener('click',()=>{const col=document.getElementById('sc-earth-sidebar').classList.toggle('collapsed');sbBtn.classList.toggle('collapsed',col);document.getElementById('sc-sb-icon').className=col?'bi bi-layout-sidebar':'bi bi-layout-sidebar-reverse';sbBtn.style.right=col?'0':'280px';setTimeout(()=>{const w=document.getElementById('sc-earth-canvas-wrap');renderer.setSize(w.clientWidth,w.clientHeight);camera.aspect=w.clientWidth/w.clientHeight;camera.updateProjectionMatrix();},280);});
+sbBtn.addEventListener('click',()=>{const col=document.getElementById('sc-earth-sidebar').classList.toggle('collapsed');sbBtn.classList.toggle('collapsed',col);document.getElementById('sc-sb-icon').className=col?'bi bi-layout-sidebar':'bi bi-layout-sidebar-reverse';sbBtn.style.right=col?'0':'280px';});
 function prefillChat(nd){const inp=document.getElementById('sc-chat-input');if(!inp)return;inp.value='Tell me about '+nd.name+' ('+( nd.sub||nd.layer)+')';inp.focus();const panel=document.getElementById('sc-chat-panel');if(panel&&!panel.classList.contains('open')&&typeof scToggleChat==='function')scToggleChat();}
-function handleVizCommand(msg){const m=msg.toLowerCase();if(m.match(/\bsatellite|space\s*layer|space\s*asset/)){jumpToLayer('space');return true;}if(m.match(/\bphysical|building|factory|data\s*center|robot|smart\s*city/)){jumpToLayer('physical');return true;}if(m.match(/\binternet|infrastructure|router|cdn|fiber/)){jumpToLayer('internet');return true;}if(m.match(/\bhuman|user|agent|people/)){jumpToLayer('human');return true;}if(m.match(/\breset|overview|full\s*view/)){animateCam(new THREE.Vector3(0,3,11),new THREE.Vector3(0,0,0));return true;}const fm=m.match(/(?:find|locate|zoom\s+to|show)\s+(.+)/);if(fm){const q=fm[1].trim();const nd=allNodes.find(n=>n.name.toLowerCase().includes(q)||(n.sub||'').toLowerCase().includes(q)||(n.did||'').toLowerCase().includes(q));if(nd){focusNode(nd);showNodeDetail(nd);return true;}}return false;}
+function handleVizCommand(msg){const m=msg.toLowerCase();
+    // Layer navigation
+    if(m.match(/\bsatellite|space\s*layer|space\s*asset|orbit/)){jumpToLayer('space');return true;}
+    if(m.match(/\bphysical|building|factory|data\s*center|robot|smart\s*city|iot|infrastructure\s*layer/)){jumpToLayer('physical');return true;}
+    if(m.match(/\binternet|router|cdn|fiber|backbone|network\s*layer/)){jumpToLayer('internet');return true;}
+    if(m.match(/\bhuman|user|agent|people|blockchain\s*user/)){jumpToLayer('human');return true;}
+    // Camera controls
+    if(m.match(/\breset|overview|full\s*view|zoom\s*out|earth\s*view/)){animateCam(new THREE.Vector3(0,3,11),new THREE.Vector3(0,0,0));return true;}
+    if(m.match(/\bspin|auto.?rot|rotate\s*on/)){autoRot=true;controls.autoRotate=true;document.getElementById('btn-autorot').classList.add('active');return true;}
+    if(m.match(/\bstop\s*spin|stop\s*rot|freeze/)){autoRot=false;controls.autoRotate=false;document.getElementById('btn-autorot').classList.remove('active');return true;}
+    // Layer visibility toggle
+    if(m.match(/\bhide\s+space|toggle\s+space/)){const b=document.querySelector('[data-layer="space"]');if(b)b.click();return true;}
+    if(m.match(/\bhide\s+internet|toggle\s+internet/)){const b=document.querySelector('[data-layer="internet"]');if(b)b.click();return true;}
+    if(m.match(/\bhide\s+physical|toggle\s+physical/)){const b=document.querySelector('[data-layer="physical"]');if(b)b.click();return true;}
+    if(m.match(/\bhide\s+human|toggle\s+human/)){const b=document.querySelector('[data-layer="human"]');if(b)b.click();return true;}
+    // Node search
+    const fm=m.match(/(?:find|locate|zoom\s+to|show|focus\s+on?)\s+(.+)/);
+    if(fm){const q=fm[1].trim();const nd=allNodes.find(n=>n.name.toLowerCase().includes(q)||(n.sub||'').toLowerCase().includes(q)||(n.did||'').toLowerCase().includes(q)||(n.type||'').toLowerCase().includes(q));if(nd){focusNode(nd);showNodeDetail(nd);return true;}}
+    // Refresh
+    if(m.match(/\brefresh|reload|update\s*data/)){loadData();return true;}
+    return false;
+}
 window._scEarthVizCommand=handleVizCommand;
 document.addEventListener('DOMContentLoaded',()=>{const inp=document.getElementById('sc-chat-input');if(!inp)return;inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&inp.value.trim())handleVizCommand(inp.value.trim());});document.getElementById('sc-chat-send-btn')?.addEventListener('click',()=>{if(inp.value.trim())handleVizCommand(inp.value.trim());},{capture:true});});
 async function loadData(){
