@@ -107,7 +107,7 @@ def _extract_title(text: str) -> str:
     text = text.strip()
     sep_idx = text.find(" - ")
     if sep_idx > 0:
-        return text[:sep_idx][:80]
+        return text[:min(sep_idx, 80)]
     return text[:60]
 
 

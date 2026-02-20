@@ -174,6 +174,34 @@ def test_contract_api_not_found(client):
     assert resp.status_code == 404
 
 
+def test_contract_invalid_participant(client):
+    """Test that invalid participant DIDs are rejected."""
+    client.post("/register", data={
+        "username": "invalidpartuser",
+        "password": "pw",
+        "confirm_password": "pw",
+        "agent_type": "human",
+    })
+    with client.session_transaction() as sess:
+        user_did = sess.get("user_did")
+
+    resp = client.post("/api/contracts", json={
+        "creator_did": user_did,
+        "title": "Invalid Participant",
+        "participants": ["not-a-valid-did", user_did],
+    })
+    assert resp.status_code == 400
+    assert "Invalid participant DID" in resp.get_json()["error"]
+
+    # Valid DID format should succeed
+    resp2 = client.post("/api/contracts", json={
+        "creator_did": user_did,
+        "title": "Valid Participant",
+        "participants": [user_did],
+    })
+    assert resp2.status_code == 201
+
+
 def test_contract_complete_wrong_status(client):
     client.post("/register", data={
         "username": "statususer",

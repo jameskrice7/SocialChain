@@ -38,6 +38,9 @@ def _web_search(query: str, max_results: int = 5) -> dict:
 
 
 class AIAgent:
+    # Capabilities that are high-frequency/transient and should not flood the chain
+    NON_RECORDABLE_CAPABILITIES = frozenset({"echo", "store", "chat", "search"})
+
     def __init__(
         self,
         name: str,
@@ -240,7 +243,7 @@ class AIAgent:
         if blockchain is not None:
             capability_key = task.payload.get("capability", "echo")
             # Only record non-trivial capabilities to avoid flooding the chain
-            if capability_key not in ("echo", "store", "chat", "search"):
+            if capability_key not in self.NON_RECORDABLE_CAPABILITIES:
                 self._record_task_on_chain(task, blockchain)
 
         return task

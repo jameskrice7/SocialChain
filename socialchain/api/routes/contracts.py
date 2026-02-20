@@ -30,6 +30,9 @@ def create_contract():
     participants = data.get("participants", [])
     if not isinstance(participants, list):
         return jsonify({"error": "participants must be a list"}), 400
+    for p in participants:
+        if not isinstance(p, str) or not p.startswith("did:"):
+            return jsonify({"error": f"Invalid participant DID: {p!r}. Must start with 'did:'"}), 400
 
     contract = SmartContract(
         creator_did=data["creator_did"],

@@ -346,8 +346,25 @@ async function scSendChat() {
 
         // Render search results specially
         if (data.type === 'search' && Array.isArray(data.search_results)) {
-            const reply = escHtmlChat(data.reply || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>').replace(/🔗 (https?:\/\/[^\s<]+)/g, (m, url) => `<a href="${escHtmlChat(url)}" target="_blank" rel="noopener noreferrer" style="color:#0dcaf0;font-size:0.72rem;">${escHtmlChat(url.slice(0,50))}…</a>`);
-            agentBubble.innerHTML = `<div class="sc-chat-sender">${agentName} <span style="font-size:0.65rem;color:#6c757d;">🌐 Web</span></div>${reply}`;
+            // Build search result HTML directly from structured data to avoid URL parsing issues
+            let searchHtml = `<div class="sc-chat-sender">${agentName} <span style="font-size:0.65rem;color:#6c757d;">🌐 Web</span></div>`;
+            const abstract = data.abstract || '';
+            if (abstract) {
+                searchHtml += `<strong>${escHtmlChat('Web results for: ' + (data.query || ''))}</strong><br>${escHtmlChat(abstract)}<br><br>`;
+            }
+            (data.search_results || []).forEach(r => {
+                const title = escHtmlChat((r.title || '').slice(0, 60));
+                const snippet = escHtmlChat((r.snippet || '').slice(0, 150));
+                const rawUrl = r.url || '';
+                // Only render http/https URLs to prevent XSS
+                const safeUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : '';
+                searchHtml += `• <strong>${title}</strong><br>${snippet}`;
+                if (safeUrl) {
+                    searchHtml += `<br><a href="${escHtmlChat(safeUrl)}" target="_blank" rel="noopener noreferrer" style="color:#0dcaf0;font-size:0.7rem;">${escHtmlChat(safeUrl.slice(0, 55))}…</a>`;
+                }
+                searchHtml += '<br><br>';
+            });
+            agentBubble.innerHTML = searchHtml;
         } else {
             const reply = escHtmlChat(data.reply || data.error || 'No response.');
             agentBubble.innerHTML = `<div class="sc-chat-sender">${agentName}</div>` +
