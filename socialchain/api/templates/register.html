@@ -63,9 +63,11 @@
                                name="display_name" autocomplete="name" placeholder="How others see you (defaults to username)">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-secondary small">Bio <span class="text-secondary" style="font-size:0.68rem;">(max 280 chars)</span></label>
+                        <label class="form-label text-secondary small" for="bio-input">Bio <small id="bio-hint" class="text-secondary">(max 280 chars)</small></label>
                         <textarea class="form-control bg-dark text-light border-secondary" name="bio"
-                                  rows="2" maxlength="280" placeholder="Tell the network who you are…"></textarea>
+                                  id="bio-input" rows="2" maxlength="280"
+                                  aria-describedby="bio-hint"
+                                  placeholder="Tell the network who you are…"></textarea>
                     </div>
 
                     <hr class="border-secondary my-3">

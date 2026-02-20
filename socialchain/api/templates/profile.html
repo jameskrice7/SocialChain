@@ -310,7 +310,17 @@
                     {% for dev in devices %}
                     <div class="col-12">
                         <div class="d-flex align-items-center gap-2 p-2 rounded bg-dark border border-secondary">
-                            <i class="bi bi-{{ 'thermometer' if dev.type == 'sensor' else 'router' if dev.type == 'gateway' else 'cpu' }} text-info fs-5"></i>
+                            {% if dev.type == 'sensor' %}
+                            <i class="bi bi-thermometer text-info fs-5"></i>
+                            {% elif dev.type == 'gateway' %}
+                            <i class="bi bi-router text-info fs-5"></i>
+                            {% elif dev.type == 'camera' %}
+                            <i class="bi bi-camera-video text-info fs-5"></i>
+                            {% elif dev.type == 'actuator' %}
+                            <i class="bi bi-toggles text-info fs-5"></i>
+                            {% else %}
+                            <i class="bi bi-cpu text-info fs-5"></i>
+                            {% endif %}
                             <div class="flex-grow-1">
                                 <div class="text-light small fw-bold">{{ dev.name }}</div>
                                 <div class="text-secondary" style="font-size:0.68rem;">{{ dev.type | title }} · {{ dev.location or 'Location unknown' }}</div>
