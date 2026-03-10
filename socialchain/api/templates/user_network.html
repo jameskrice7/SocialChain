@@ -106,6 +106,37 @@
 @keyframes sc-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 .spin { animation:sc-spin .7s linear infinite; display:inline-block; }
 .sc-leg-dot { width:9px; height:9px; border-radius:50%; display:inline-block; flex-shrink:0; }
+/* ── HUD overlay ── */
+#sc-earth-hud {
+    position:absolute; bottom:16px; left:16px; z-index:20; display:flex; flex-direction:column; gap:6px; pointer-events:none;
+}
+.sc-hud-chip {
+    display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:6px;
+    background:rgba(0,0,14,.72); backdrop-filter:blur(8px);
+    border:1px solid rgba(13,202,240,.12); font-size:.68rem; color:#8a8f98;
+    animation: hudFadeIn .6s ease both; pointer-events:auto;
+}
+.sc-hud-chip i { color:#0dcaf0; font-size:.75rem; }
+@keyframes hudFadeIn { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
+/* ── Zoom indicator bar ── */
+#sc-zoom-bar {
+    position:absolute; bottom:16px; right:16px; z-index:20; display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.sc-zoom-btn {
+    width:28px; height:28px; border-radius:6px; border:1px solid rgba(13,202,240,.2);
+    background:rgba(0,0,14,.65); backdrop-filter:blur(6px); color:#0dcaf0;
+    font-size:.85rem; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:all .15s;
+}
+.sc-zoom-btn:hover { background:rgba(13,202,240,.15); }
+#sc-zoom-level {
+    font-size:.58rem; color:#6c757d; letter-spacing:.5px; text-transform:uppercase;
+}
+/* ── Connection pulse animation via line opacity ── */
+@keyframes connPulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
 </style>
 <div id="sc-earth-page">
   <div id="sc-earth-topbar">
@@ -115,6 +146,7 @@
         <div class="sc-stat-chip"><span class="val" id="stat-total">&ndash;</span><span class="lbl">Nodes</span></div>
         <div class="sc-stat-chip"><span class="val" id="stat-links">&ndash;</span><span class="lbl">Links</span></div>
         <div class="sc-stat-chip"><span class="val" id="stat-sc">&ndash;</span><span class="lbl">SC Users</span></div>
+        <div class="sc-stat-chip"><span class="val" id="stat-blocks">&ndash;</span><span class="lbl">Blocks</span></div>
       </div>
     </div>
     <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -135,6 +167,19 @@
         <div class="spinner-border text-info" style="width:2rem;height:2rem;"></div>
         <span>Initializing Earth network&hellip;</span>
       </div>
+    </div>
+    <!-- HUD interaction hints -->
+    <div id="sc-earth-hud">
+      <div class="sc-hud-chip" style="animation-delay:.1s"><i class="bi bi-mouse"></i> Drag to rotate</div>
+      <div class="sc-hud-chip" style="animation-delay:.25s"><i class="bi bi-arrows-angle-expand"></i> Scroll to zoom</div>
+      <div class="sc-hud-chip" style="animation-delay:.4s"><i class="bi bi-cursor-fill"></i> Click a node to inspect</div>
+      <div class="sc-hud-chip" style="animation-delay:.55s"><i class="bi bi-keyboard"></i> Use layer buttons to toggle</div>
+    </div>
+    <!-- Zoom controls -->
+    <div id="sc-zoom-bar">
+      <button class="sc-zoom-btn" id="sc-zoom-in" title="Zoom in"><i class="bi bi-plus"></i></button>
+      <span id="sc-zoom-level">1.0×</span>
+      <button class="sc-zoom-btn" id="sc-zoom-out" title="Zoom out"><i class="bi bi-dash"></i></button>
     </div>
     <button id="sc-sb-toggle" title="Toggle panel"><i class="bi bi-layout-sidebar-reverse" id="sc-sb-icon"></i></button>
     <div id="sc-earth-sidebar">
@@ -386,7 +431,9 @@ function buildConnections(){
         if(!segs.length)return null;
         totalLinks+=segs.length/6;
         const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(segs,3));
-        const ls=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false}));
+        const mat=new THREE.LineBasicMaterial({color,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false});
+        mat._baseOp=opacity;
+        const ls=new THREE.LineSegments(geo,mat);
         scene.add(ls);return ls;
     }).filter(Boolean);
     connLines=connLineGroups[0]||null;
@@ -447,6 +494,14 @@ document.getElementById('btn-physical').addEventListener('click',()=>jumpToLayer
 document.getElementById('btn-reset').addEventListener('click',()=>{autoRot=true;controls.autoRotate=true;animateCam(new THREE.Vector3(0,3,11),new THREE.Vector3(0,0,0));});
 document.getElementById('btn-autorot').addEventListener('click',function(){autoRot=!autoRot;controls.autoRotate=autoRot;this.classList.toggle('active',autoRot);});
 document.getElementById('btn-refresh').addEventListener('click',loadData);
+// Zoom controls
+document.getElementById('sc-zoom-in').addEventListener('click',()=>{const dir=camera.position.clone().normalize();camera.position.addScaledVector(dir,-1.5);controls.update();updateZoomLevel();});
+document.getElementById('sc-zoom-out').addEventListener('click',()=>{const dir=camera.position.clone().normalize();camera.position.addScaledVector(dir,1.5);controls.update();updateZoomLevel();});
+function updateZoomLevel(){const d=camera.position.length();const z=(11/d).toFixed(1);document.getElementById('sc-zoom-level').textContent=z+'×';}
+// Dismiss HUD hints after first interaction
+let hudDismissed=false;
+function dismissHud(){if(hudDismissed)return;hudDismissed=true;const hud=document.getElementById('sc-earth-hud');if(hud)setTimeout(()=>{hud.style.transition='opacity .6s';hud.style.opacity='0';setTimeout(()=>hud.remove(),700);},4000);}
+renderer.domElement.addEventListener('pointerdown',dismissHud,{once:true});
 const sbBtn=document.getElementById('sc-sb-toggle');
 sbBtn.addEventListener('click',()=>{const col=document.getElementById('sc-earth-sidebar').classList.toggle('collapsed');sbBtn.classList.toggle('collapsed',col);document.getElementById('sc-sb-icon').className=col?'bi bi-layout-sidebar':'bi bi-layout-sidebar-reverse';sbBtn.style.right=col?'0':'280px';});
 function prefillChat(nd){const inp=document.getElementById('sc-chat-input');if(!inp)return;inp.value='Tell me about '+nd.name+' ('+( nd.sub||nd.layer)+')';inp.focus();const panel=document.getElementById('sc-chat-panel');if(panel&&!panel.classList.contains('open')&&typeof scToggleChat==='function')scToggleChat();}
@@ -477,9 +532,10 @@ document.addEventListener('DOMContentLoaded',()=>{const inp=document.getElementB
 async function loadData(){
     document.getElementById('sc-refresh-icon').classList.add('spin');
     try{
-        const [profRes,mapRes]=await Promise.all([fetch('/api/social/profiles'),fetch('/api/social/map')]);
+        const [profRes,mapRes,chainRes]=await Promise.all([fetch('/api/social/profiles'),fetch('/api/social/map'),fetch('/api/chain')]);
         let profiles=[];if(profRes.ok){const d=await profRes.json();profiles=d.profiles||[];}
         const adjMap={};if(mapRes.ok){const d=await mapRes.json();Object.assign(adjMap,d.map||{});}
+        if(chainRes.ok){const cd=await chainRes.json();document.getElementById('stat-blocks').textContent=cd.length||'–';}
         const profByDid={};profiles.forEach(p=>{profByDid[p.did]=p;});
         const nodeSet=new Set(Object.keys(adjMap));nodeSet.add(USER_DID);
         scNodes=[...nodeSet].map(did=>{const p=profByDid[did]||{};return {did,username:p.display_name||p.username||did.slice(-10),is_agent:p.device_type==='agent',metadata:p.metadata||{}};});
@@ -488,7 +544,7 @@ async function loadData(){
     finally{document.getElementById('sc-refresh-icon').classList.remove('spin');const ld=document.getElementById('sc-earth-loading');ld.classList.add('hidden');setTimeout(()=>{ld.style.display='none';},600);}
 }
 function onResize(){const wrap=document.getElementById('sc-earth-canvas-wrap');renderer.setSize(wrap.clientWidth,wrap.clientHeight);camera.aspect=wrap.clientWidth/wrap.clientHeight;camera.updateProjectionMatrix();}
-function animate(){requestAnimationFrame(animate);const t=clock.getElapsedTime();if(earthMesh)earthMesh.rotation.y=t*.04;if(cloudMesh)cloudMesh.rotation.y=t*.048;if(atmMesh)atmMesh.rotation.y=t*.032;if(layerGroups.space)layerGroups.space.rotation.y=t*.008;if(layerGroups.internet)layerGroups.internet.rotation.y=-t*.014;if(layerGroups.human)layerGroups.human.rotation.y=t*.010;if(layerGroups.physical)layerGroups.physical.rotation.y=-t*.006;allMeshes.forEach(({mesh},i)=>{mesh.scale.setScalar(1+Math.sin(t*1.6+i*.38)*.065);});controls.update();renderer.render(scene,camera);}
+function animate(){requestAnimationFrame(animate);const t=clock.getElapsedTime();if(earthMesh)earthMesh.rotation.y=t*.04;if(cloudMesh)cloudMesh.rotation.y=t*.048;if(atmMesh)atmMesh.rotation.y=t*.032;if(layerGroups.space)layerGroups.space.rotation.y=t*.008;if(layerGroups.internet)layerGroups.internet.rotation.y=-t*.014;if(layerGroups.human)layerGroups.human.rotation.y=t*.010;if(layerGroups.physical)layerGroups.physical.rotation.y=-t*.006;allMeshes.forEach(({mesh},i)=>{mesh.scale.setScalar(1+Math.sin(t*1.6+i*.38)*.065);});connLineGroups.forEach((lg,i)=>{if(lg&&lg.material){lg.material.opacity=lg.material._baseOp*(0.7+0.3*Math.sin(t*1.2+i*1.5));}});updateZoomLevel();controls.update();renderer.render(scene,camera);}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 init();loadData();
 </script>

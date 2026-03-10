@@ -1,93 +1,219 @@
 {% extends "base.html" %}
 {% block title %}Login - SocialChain{% endblock %}
 {% block content %}
-<div class="row justify-content-center mt-4">
-    <div class="col-md-4 col-lg-3">
+<style>
+/* ── Login-page overrides ── */
+#sc-bg-canvas { display: none !important; }
+.sc-login-wrap {
+    display: flex; align-items: center; justify-content: center;
+    min-height: calc(100vh - 64px);
+    position: relative; overflow: hidden;
+}
+/* Animated particle canvas */
+#login-particles {
+    position: absolute; inset: 0; z-index: 0;
+}
+/* Floating constellation SVG */
+.sc-login-constellation {
+    animation: constellationFloat 6s ease-in-out infinite;
+}
+@keyframes constellationFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+/* Card entrance animation */
+.sc-login-card {
+    position: relative; z-index: 2;
+    animation: cardReveal 0.7s cubic-bezier(.16,1,.3,1) both;
+    max-width: 380px; width: 100%;
+}
+@keyframes cardReveal {
+    from { opacity: 0; transform: translateY(30px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Gradient orb glow behind the card */
+.sc-login-orb {
+    position: absolute; width: 420px; height: 420px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(13,202,240,0.12) 0%, rgba(124,58,237,0.08) 40%, transparent 70%);
+    filter: blur(40px); z-index: 1; pointer-events: none;
+    animation: orbPulse 4s ease-in-out infinite;
+}
+@keyframes orbPulse {
+    0%, 100% { opacity: .7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+}
+/* Neon underline effect on focused inputs */
+.sc-login-card .form-control:focus {
+    border-color: #0dcaf0;
+    box-shadow: 0 2px 12px rgba(13,202,240,0.25), inset 0 0 0 1px rgba(13,202,240,0.15);
+}
+/* Gradient login button */
+.sc-login-btn {
+    background: linear-gradient(135deg, #0dcaf0 0%, #7c3aed 100%);
+    border: none; color: #fff; font-weight: 600; letter-spacing: .5px;
+    transition: box-shadow .25s, transform .15s;
+}
+.sc-login-btn:hover {
+    box-shadow: 0 0 24px rgba(13,202,240,0.45), 0 0 48px rgba(124,58,237,0.2);
+    transform: translateY(-1px); color: #fff;
+}
+.sc-login-btn:active { transform: translateY(0); }
+/* Animated hex satellite icons */
+.sc-hex-node {
+    animation: hexOrbit 20s linear infinite;
+    transform-origin: 100px 80px;
+}
+@keyframes hexOrbit {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+.sc-hex-center {
+    animation: hexPulseRing 2.5s ease-in-out infinite;
+}
+/* Subtle scan-line overlay */
+.sc-scanlines::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(13,202,240,0.015) 2px, rgba(13,202,240,0.015) 4px
+    );
+}
+</style>
 
-        <!-- Hexagonal blockchain graphic -->
-        <div class="text-center mb-3">
-            <svg width="200" height="160" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg"
-                 style="display:block;margin:0 auto;">
+<div class="sc-login-wrap sc-scanlines">
+    <!-- Particle background -->
+    <canvas id="login-particles"></canvas>
+
+    <!-- Gradient orb -->
+    <div class="sc-login-orb"></div>
+
+    <!-- Main card -->
+    <div class="sc-login-card px-2">
+        <!-- Hexagonal blockchain constellation -->
+        <div class="text-center mb-4">
+            <svg width="220" height="180" viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg"
+                 class="sc-login-constellation" style="display:block;margin:0 auto;">
                 <defs>
-                    <filter id="glow">
-                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
+                    <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0dcaf0"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient>
                 </defs>
-                <!-- Outer ring hex (slowly spinning) -->
-                <g class="sc-hex-outer" filter="url(#glow)">
-                    <!-- Satellite hexagons -->
-                    <polygon points="100,8 114,16 114,32 100,40 86,32 86,16"
-                             fill="none" stroke="#7c3aed" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="155,48 169,56 169,72 155,80 141,72 141,56"
-                             fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="155,108 169,116 169,132 155,140 141,132 141,116"
-                             fill="none" stroke="#7c3aed" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="45,48 59,56 59,72 45,80 31,72 31,56"
-                             fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="45,108 59,116 59,132 45,140 31,132 31,116"
-                             fill="none" stroke="#7c3aed" stroke-width="1.5" opacity="0.7"/>
-                    <!-- Connector lines -->
-                    <line x1="100" y1="40" x2="141" y2="56"  stroke="#0dcaf0" stroke-width="0.8" opacity="0.5"/>
-                    <line x1="100" y1="40" x2="59"  y2="56"  stroke="#0dcaf0" stroke-width="0.8" opacity="0.5"/>
-                    <line x1="141" y1="80" x2="141" y2="116" stroke="#0dcaf0" stroke-width="0.8" opacity="0.5"/>
-                    <line x1="59"  y1="80" x2="59"  y2="116" stroke="#0dcaf0" stroke-width="0.8" opacity="0.5"/>
+                <!-- Orbiting satellites -->
+                <g class="sc-hex-node" filter="url(#glow)">
+                    <polygon points="110,10 122,17 122,31 110,38 98,31 98,17" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity=".65"/>
+                    <polygon points="170,50 182,57 182,71 170,78 158,71 158,57" fill="none" stroke="#0dcaf0" stroke-width="1.2" opacity=".65"/>
+                    <polygon points="170,115 182,122 182,136 170,143 158,136 158,122" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity=".65"/>
+                    <polygon points="50,50 62,57 62,71 50,78 38,71 38,57" fill="none" stroke="#0dcaf0" stroke-width="1.2" opacity=".65"/>
+                    <polygon points="50,115 62,122 62,136 50,143 38,136 38,122" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity=".65"/>
+                    <!-- Connection lines with animated dash -->
+                    <line x1="110" y1="38" x2="158" y2="57" stroke="url(#hexGrad)" stroke-width=".7" opacity=".4" stroke-dasharray="4 3"/>
+                    <line x1="110" y1="38" x2="62"  y2="57" stroke="url(#hexGrad)" stroke-width=".7" opacity=".4" stroke-dasharray="4 3"/>
+                    <line x1="158" y1="78" x2="158" y2="122" stroke="url(#hexGrad)" stroke-width=".7" opacity=".4" stroke-dasharray="4 3"/>
+                    <line x1="62"  y1="78" x2="62"  y2="122" stroke="url(#hexGrad)" stroke-width=".7" opacity=".4" stroke-dasharray="4 3"/>
+                    <line x1="62" y1="136" x2="158" y2="136" stroke="url(#hexGrad)" stroke-width=".5" opacity=".25" stroke-dasharray="4 3"/>
                 </g>
-                <!-- Centre hexagon (pulses) -->
-                <g class="sc-hex-ring" filter="url(#glow)">
-                    <polygon points="100,60 118,70 118,90 100,100 82,90 82,70"
-                             fill="rgba(13,202,240,0.08)" stroke="#0dcaf0" stroke-width="2"/>
-                    <text x="100" y="86" text-anchor="middle" font-size="18" font-weight="bold" fill="#0dcaf0"
+                <!-- Centre hex (pulses) -->
+                <g class="sc-hex-center" filter="url(#glow)">
+                    <polygon points="110,62 130,73 130,95 110,106 90,95 90,73"
+                             fill="rgba(13,202,240,0.06)" stroke="url(#hexGrad)" stroke-width="2.2"/>
+                    <text x="110" y="92" text-anchor="middle" font-size="22" font-weight="bold" fill="#0dcaf0"
                           font-family="monospace">⛓</text>
                 </g>
             </svg>
-            <div class="sc-glow-text fw-bold fs-4 mb-1">SocialChain</div>
-            <div class="text-secondary small">The Exclusive Blockchain Social Network</div>
+            <div class="sc-glow-text fw-bold fs-3 mb-1" style="letter-spacing:1.5px;">SocialChain</div>
+            <div class="text-secondary small" style="letter-spacing:.5px;">Decentralized · Verified · Unstoppable</div>
         </div>
 
-        <!-- Login card -->
-        <div class="card card-verified bg-black">
+        <!-- Login form card -->
+        <div class="card bg-black" style="border:1px solid rgba(13,202,240,.2);border-radius:14px;backdrop-filter:blur(16px);background:rgba(5,5,16,.88);">
             <div class="card-body p-4">
-                <h5 class="text-center text-secondary mb-4">
-                    <i class="bi bi-shield-lock text-info"></i> Sign in to your node
+                <h5 class="text-center mb-4" style="color:#8a8f98;">
+                    <i class="bi bi-shield-lock text-info"></i>&ensp;Sign in to your node
                 </h5>
                 <form method="post">
                     <div class="mb-3">
                         <label class="form-label text-secondary small">Username</label>
-                        <input type="text" class="form-control bg-dark text-light border-secondary"
-                               name="username" required autofocus autocomplete="username">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-person"></i></span>
+                            <input type="text" class="form-control bg-dark text-light border-secondary"
+                                   name="username" required autofocus autocomplete="username"
+                                   placeholder="Your identity">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-secondary small">Password</label>
-                        <input type="password" class="form-control bg-dark text-light border-secondary"
-                               name="password" required autocomplete="current-password">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control bg-dark text-light border-secondary"
+                                   name="password" required autocomplete="current-password"
+                                   placeholder="••••••••">
+                        </div>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input border-secondary" name="remember_me" id="rememberMe">
-                        <label class="form-check-label text-secondary small" for="rememberMe">Remember me</label>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input border-secondary" name="remember_me" id="rememberMe">
+                            <label class="form-check-label text-secondary small" for="rememberMe">Remember me</label>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-info w-100 mt-2">
-                        <i class="bi bi-box-arrow-in-right"></i> Login
+                    <button type="submit" class="btn sc-login-btn w-100 py-2 mt-1">
+                        <i class="bi bi-box-arrow-in-right"></i>&ensp;Login
                     </button>
                 </form>
-                <hr class="border-secondary my-3">
+                <hr class="border-secondary my-3" style="opacity:.2;">
                 <div class="text-center">
                     <small class="text-secondary">
-                        No account?
-                        <a href="{{ url_for('auth.register') }}" class="text-info text-decoration-none">Create your node identity</a>
+                        No account?&ensp;
+                        <a href="{{ url_for('auth.register') }}" class="text-info text-decoration-none fw-semibold">Create your node identity&nbsp;→</a>
                     </small>
                 </div>
-                <hr class="border-secondary my-2">
+                <hr class="border-secondary my-2" style="opacity:.15;">
                 <div class="text-center">
                     <small class="text-secondary d-block mb-1">Don't have the desktop app yet?</small>
                     <a href="https://github.com/jameskrice7/SocialChain/releases/latest"
-                       target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary w-100">
-                        <i class="bi bi-download"></i> Download SocialChain
+                       target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary w-100"
+                       style="border-radius:8px;">
+                        <i class="bi bi-download"></i>&ensp;Download SocialChain
                     </a>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Particle network animation for login background
+(function(){
+    const cvs = document.getElementById('login-particles');
+    if(!cvs) return;
+    const ctx = cvs.getContext('2d');
+    let W, H, particles = [];
+    const N = 70, MAX_D = 140, SPEED = 0.25;
+    function resize(){ W = cvs.width = cvs.parentElement.clientWidth; H = cvs.height = cvs.parentElement.clientHeight; }
+    resize(); window.addEventListener('resize', resize);
+    for(let i=0;i<N;i++) particles.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*SPEED,vy:(Math.random()-.5)*SPEED,r:Math.random()*1.5+.5});
+    function frame(){
+        ctx.clearRect(0,0,W,H);
+        particles.forEach(p=>{
+            p.x+=p.vx; p.y+=p.vy;
+            if(p.x<0) p.x=W; if(p.x>W) p.x=0;
+            if(p.y<0) p.y=H; if(p.y>H) p.y=0;
+            ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+            ctx.fillStyle='rgba(13,202,240,0.35)'; ctx.fill();
+        });
+        for(let i=0;i<N;i++) for(let j=i+1;j<N;j++){
+            const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y;
+            const d=Math.sqrt(dx*dx+dy*dy);
+            if(d<MAX_D){
+                ctx.beginPath(); ctx.moveTo(particles[i].x,particles[i].y);
+                ctx.lineTo(particles[j].x,particles[j].y);
+                ctx.strokeStyle=`rgba(13,202,240,${0.12*(1-d/MAX_D)})`;
+                ctx.lineWidth=0.6; ctx.stroke();
+            }
+        }
+        requestAnimationFrame(frame);
+    }
+    frame();
+})();
+</script>
 {% endblock %}

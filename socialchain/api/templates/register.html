@@ -1,118 +1,181 @@
 {% extends "base.html" %}
 {% block title %}Register - SocialChain{% endblock %}
 {% block content %}
-<div class="row justify-content-center mt-4">
-    <div class="col-md-6 col-lg-5">
+<style>
+#sc-bg-canvas { display: none !important; }
+.sc-reg-wrap {
+    display: flex; align-items: center; justify-content: center;
+    min-height: calc(100vh - 64px);
+    position: relative; overflow: hidden;
+}
+#reg-particles { position: absolute; inset: 0; z-index: 0; }
+.sc-reg-card {
+    position: relative; z-index: 2;
+    animation: regReveal 0.7s cubic-bezier(.16,1,.3,1) both;
+    max-width: 520px; width: 100%;
+}
+@keyframes regReveal {
+    from { opacity: 0; transform: translateY(30px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sc-reg-orb {
+    position: absolute; width: 480px; height: 480px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(25,135,84,0.12) 0%, rgba(13,202,240,0.08) 40%, transparent 70%);
+    filter: blur(40px); z-index: 1; pointer-events: none;
+    animation: orbPulseG 4s ease-in-out infinite;
+}
+@keyframes orbPulseG {
+    0%, 100% { opacity: .6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.06); }
+}
+/* Step indicators */
+.sc-step-bar { display: flex; gap: 6px; justify-content: center; margin-bottom: 1.2rem; }
+.sc-step-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(255,255,255,0.12); transition: all .3s;
+    cursor: pointer;
+}
+.sc-step-dot.active { background: #0dcaf0; box-shadow: 0 0 8px rgba(13,202,240,0.5); }
+.sc-step-dot.done   { background: #198754; box-shadow: 0 0 6px rgba(25,135,84,0.4); }
+/* Step panels */
+.sc-step-panel { display: none; animation: stepFade .35s ease both; }
+.sc-step-panel.active { display: block; }
+@keyframes stepFade { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+/* Gradient button */
+.sc-reg-btn {
+    background: linear-gradient(135deg, #198754 0%, #0dcaf0 100%);
+    border: none; color: #fff; font-weight: 600; letter-spacing: .5px;
+    transition: box-shadow .25s, transform .15s;
+}
+.sc-reg-btn:hover { box-shadow: 0 0 24px rgba(25,135,84,.4), 0 0 48px rgba(13,202,240,.2); transform: translateY(-1px); color:#fff; }
+.sc-reg-btn:active { transform: translateY(0); }
+.sc-nav-btn {
+    background: rgba(13,202,240,0.08); border: 1px solid rgba(13,202,240,0.25);
+    color: #0dcaf0; border-radius: 8px; padding: 6px 18px; font-size: .85rem;
+    cursor: pointer; transition: all .15s;
+}
+.sc-nav-btn:hover { background: rgba(13,202,240,0.18); color: #fff; }
+/* Floating constellation */
+.sc-reg-constellation { animation: constellationFloat 6s ease-in-out infinite; }
+@keyframes constellationFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.sc-scanlines-reg::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(25,135,84,0.012) 2px, rgba(25,135,84,0.012) 4px);
+}
+</style>
 
+<div class="sc-reg-wrap sc-scanlines-reg">
+    <canvas id="reg-particles"></canvas>
+    <div class="sc-reg-orb"></div>
+
+    <div class="sc-reg-card px-2">
         <!-- Hexagonal graphic -->
         <div class="text-center mb-3">
             <svg width="200" height="160" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg"
-                 style="display:block;margin:0 auto;">
+                 class="sc-reg-constellation" style="display:block;margin:0 auto;">
                 <defs>
-                    <filter id="glow2">
-                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
+                    <filter id="glow2"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    <linearGradient id="regGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#198754"/><stop offset="100%" stop-color="#0dcaf0"/></linearGradient>
                 </defs>
                 <g class="sc-hex-outer" filter="url(#glow2)">
-                    <polygon points="100,8 114,16 114,32 100,40 86,32 86,16"
-                             fill="none" stroke="#198754" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="155,48 169,56 169,72 155,80 141,72 141,56"
-                             fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="155,108 169,116 169,132 155,140 141,132 141,116"
-                             fill="none" stroke="#198754" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="45,48 59,56 59,72 45,80 31,72 31,56"
-                             fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity="0.7"/>
-                    <polygon points="45,108 59,116 59,132 45,140 31,132 31,116"
-                             fill="none" stroke="#198754" stroke-width="1.5" opacity="0.7"/>
-                    <line x1="100" y1="40" x2="141" y2="56"  stroke="#198754" stroke-width="0.8" opacity="0.5"/>
-                    <line x1="100" y1="40" x2="59"  y2="56"  stroke="#198754" stroke-width="0.8" opacity="0.5"/>
-                    <line x1="141" y1="80" x2="141" y2="116" stroke="#198754" stroke-width="0.8" opacity="0.5"/>
-                    <line x1="59"  y1="80" x2="59"  y2="116" stroke="#198754" stroke-width="0.8" opacity="0.5"/>
+                    <polygon points="100,8 114,16 114,32 100,40 86,32 86,16" fill="none" stroke="#198754" stroke-width="1.5" opacity=".7"/>
+                    <polygon points="155,48 169,56 169,72 155,80 141,72 141,56" fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity=".7"/>
+                    <polygon points="155,108 169,116 169,132 155,140 141,132 141,116" fill="none" stroke="#198754" stroke-width="1.5" opacity=".7"/>
+                    <polygon points="45,48 59,56 59,72 45,80 31,72 31,56" fill="none" stroke="#0dcaf0" stroke-width="1.5" opacity=".7"/>
+                    <polygon points="45,108 59,116 59,132 45,140 31,132 31,116" fill="none" stroke="#198754" stroke-width="1.5" opacity=".7"/>
+                    <line x1="100" y1="40" x2="141" y2="56" stroke="url(#regGrad)" stroke-width=".8" opacity=".4" stroke-dasharray="4 3"/>
+                    <line x1="100" y1="40" x2="59"  y2="56" stroke="url(#regGrad)" stroke-width=".8" opacity=".4" stroke-dasharray="4 3"/>
+                    <line x1="141" y1="80" x2="141" y2="116" stroke="url(#regGrad)" stroke-width=".8" opacity=".4" stroke-dasharray="4 3"/>
+                    <line x1="59"  y1="80" x2="59"  y2="116" stroke="url(#regGrad)" stroke-width=".8" opacity=".4" stroke-dasharray="4 3"/>
                 </g>
                 <g class="sc-hex-ring" filter="url(#glow2)">
-                    <polygon points="100,60 118,70 118,90 100,100 82,90 82,70"
-                             fill="rgba(25,135,84,0.1)" stroke="#198754" stroke-width="2"/>
-                    <text x="100" y="86" text-anchor="middle" font-size="16" font-weight="bold" fill="#198754"
-                          font-family="monospace">✦</text>
+                    <polygon points="100,60 118,70 118,90 100,100 82,90 82,70" fill="rgba(25,135,84,0.06)" stroke="url(#regGrad)" stroke-width="2"/>
+                    <text x="100" y="86" text-anchor="middle" font-size="16" font-weight="bold" fill="#198754" font-family="monospace">✦</text>
                 </g>
             </svg>
-            <div class="sc-glow-text fw-bold fs-4 mb-1">SocialChain</div>
-            <div class="text-secondary small">The Exclusive Blockchain Social Network</div>
+            <div class="sc-glow-text fw-bold fs-3 mb-1" style="letter-spacing:1.5px;">Join SocialChain</div>
+            <div class="text-secondary small" style="letter-spacing:.5px;">Create your decentralized identity</div>
         </div>
 
         <!-- Register card -->
-        <div class="card card-verified bg-black">
+        <div class="card bg-black" style="border:1px solid rgba(25,135,84,.2);border-radius:14px;backdrop-filter:blur(16px);background:rgba(5,5,16,.88);">
             <div class="card-body p-4">
-                <h5 class="text-center text-secondary mb-4">
-                    <i class="bi bi-person-plus text-info"></i> Create your node identity
-                </h5>
-                <form method="post">
-                    <!-- Identity section -->
-                    <div class="mb-1 text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
-                        <i class="bi bi-person"></i> Identity
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small">Username <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control bg-dark text-light border-secondary"
-                               name="username" required autofocus autocomplete="username">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small">Display Name</label>
-                        <input type="text" class="form-control bg-dark text-light border-secondary"
-                               name="display_name" autocomplete="name" placeholder="How others see you (defaults to username)">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small" for="bio-input">Bio <small id="bio-hint" class="text-secondary">(max 280 chars)</small></label>
-                        <textarea class="form-control bg-dark text-light border-secondary" name="bio"
-                                  id="bio-input" rows="2" maxlength="280"
-                                  aria-describedby="bio-hint"
-                                  placeholder="Tell the network who you are…"></textarea>
+                <!-- Step indicators -->
+                <div class="sc-step-bar">
+                    <div class="sc-step-dot active" data-step="1" title="Identity"></div>
+                    <div class="sc-step-dot" data-step="2" title="Security"></div>
+                    <div class="sc-step-dot" data-step="3" title="Social"></div>
+                </div>
+
+                <form method="post" id="reg-form">
+                    <!-- Step 1: Identity -->
+                    <div class="sc-step-panel active" data-panel="1">
+                        <div class="mb-1 text-secondary" style="font-size:.7rem;letter-spacing:1px;text-transform:uppercase;">
+                            <i class="bi bi-person"></i> Identity
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Username <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-at"></i></span>
+                                <input type="text" class="form-control bg-dark text-light border-secondary"
+                                       name="username" required autofocus autocomplete="username" placeholder="Choose a unique handle">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Display Name</label>
+                            <input type="text" class="form-control bg-dark text-light border-secondary"
+                                   name="display_name" autocomplete="name" placeholder="How others see you">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small" for="bio-input">Bio <small class="text-secondary">(max 280 chars)</small></label>
+                            <textarea class="form-control bg-dark text-light border-secondary" name="bio"
+                                      id="bio-input" rows="2" maxlength="280" placeholder="Tell the network who you are…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Node Type</label>
+                            <select class="form-select bg-dark text-light border-secondary" name="agent_type">
+                                <option value="human">🧑 Human (one per device)</option>
+                                <option value="ai">🤖 AI Agent (one per agent)</option>
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="sc-nav-btn" onclick="goStep(2)">Next&ensp;<i class="bi bi-arrow-right"></i></button>
+                        </div>
                     </div>
 
-                    <hr class="border-secondary my-3">
-
-                    <!-- Node type section -->
-                    <div class="mb-1 text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
-                        <i class="bi bi-cpu"></i> Node Type
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small">Agent Type</label>
-                        <select class="form-select bg-dark text-light border-secondary" name="agent_type">
-                            <option value="human">Human (one per device)</option>
-                            <option value="ai">AI Agent (one per agent)</option>
-                        </select>
-                    </div>
-
-                    <hr class="border-secondary my-3">
-
-                    <!-- Security section -->
-                    <div class="mb-1 text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
-                        <i class="bi bi-shield-lock"></i> Security
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small">Password <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control bg-dark text-light border-secondary"
-                               name="password" required autocomplete="new-password">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small">Confirm Password <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control bg-dark text-light border-secondary"
-                               name="confirm_password" required autocomplete="new-password">
+                    <!-- Step 2: Security -->
+                    <div class="sc-step-panel" data-panel="2">
+                        <div class="mb-1 text-secondary" style="font-size:.7rem;letter-spacing:1px;text-transform:uppercase;">
+                            <i class="bi bi-shield-lock"></i> Security
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Password <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-key"></i></span>
+                                <input type="password" class="form-control bg-dark text-light border-secondary"
+                                       name="password" required autocomplete="new-password" placeholder="Minimum 6 characters" id="reg-pw">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Confirm Password <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-key-fill"></i></span>
+                                <input type="password" class="form-control bg-dark text-light border-secondary"
+                                       name="confirm_password" required autocomplete="new-password" placeholder="Re-enter password" id="reg-pw2">
+                            </div>
+                            <div id="pw-match-msg" class="small mt-1"></div>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="sc-nav-btn" onclick="goStep(1)"><i class="bi bi-arrow-left"></i>&ensp;Back</button>
+                            <button type="button" class="sc-nav-btn" onclick="goStep(3)">Next&ensp;<i class="bi bi-arrow-right"></i></button>
+                        </div>
                     </div>
 
-                    <hr class="border-secondary my-3">
-
-                    <!-- Social links section (optional) -->
-                    <div class="mb-2 d-flex align-items-center justify-content-between"
-                         style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#reg-social-section"
-                         aria-expanded="false">
-                        <span class="text-secondary" style="font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;">
+                    <!-- Step 3: Social & Submit -->
+                    <div class="sc-step-panel" data-panel="3">
+                        <div class="mb-2 text-secondary" style="font-size:.7rem;letter-spacing:1px;text-transform:uppercase;">
                             <i class="bi bi-share"></i> Social Networks <span class="text-secondary">(optional)</span>
-                        </span>
-                        <i class="bi bi-chevron-down text-secondary" style="font-size:0.75rem;" id="reg-social-chevron"></i>
-                    </div>
-                    <div class="collapse" id="reg-social-section">
+                        </div>
                         <div class="row g-2 mb-3">
                             <div class="col-12">
                                 <label class="form-label text-secondary small"><i class="bi bi-facebook" style="color:#1877f2;"></i> Facebook</label>
@@ -140,37 +203,67 @@
                                        name="sl_twitter" placeholder="https://x.com/yourhandle">
                             </div>
                         </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="button" class="sc-nav-btn" onclick="goStep(2)"><i class="bi bi-arrow-left"></i>&ensp;Back</button>
+                            <button type="submit" class="btn sc-reg-btn py-2 px-4">
+                                <i class="bi bi-link-45deg"></i>&ensp;Register &amp; Join Network
+                            </button>
+                        </div>
                     </div>
-
-                    <button type="submit" class="btn btn-info w-100 mt-2">
-                        <i class="bi bi-link-45deg"></i> Register &amp; Join Network
-                    </button>
                 </form>
-                <hr class="border-secondary my-3">
+                <hr class="border-secondary my-3" style="opacity:.2;">
                 <div class="text-center">
                     <small class="text-secondary">
-                        Already registered?
-                        <a href="{{ url_for('auth.login') }}" class="text-info text-decoration-none">Sign in to your node</a>
+                        Already registered?&ensp;
+                        <a href="{{ url_for('auth.login') }}" class="text-info text-decoration-none fw-semibold">Sign in to your node&nbsp;→</a>
                     </small>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
-// Toggle chevron direction when social section collapses/expands
-const regSocialSection = document.getElementById('reg-social-section');
-const regSocialChevron = document.getElementById('reg-social-chevron');
-if (regSocialSection && regSocialChevron) {
-    regSocialSection.addEventListener('show.bs.collapse', () => {
-        regSocialChevron.classList.replace('bi-chevron-down', 'bi-chevron-up');
+// Step navigation
+function goStep(n) {
+    document.querySelectorAll('.sc-step-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sc-step-dot').forEach(d => {
+        const s = +d.dataset.step;
+        d.classList.remove('active','done');
+        if(s < n) d.classList.add('done');
+        if(s === n) d.classList.add('active');
     });
-    regSocialSection.addEventListener('hide.bs.collapse', () => {
-        regSocialChevron.classList.replace('bi-chevron-up', 'bi-chevron-down');
-    });
+    const panel = document.querySelector(`.sc-step-panel[data-panel="${n}"]`);
+    if(panel) panel.classList.add('active');
 }
+document.querySelectorAll('.sc-step-dot').forEach(d => d.addEventListener('click', () => goStep(+d.dataset.step)));
+
+// Password match indicator
+const pw = document.getElementById('reg-pw'), pw2 = document.getElementById('reg-pw2'), msg = document.getElementById('pw-match-msg');
+function checkMatch(){
+    if(!pw2.value) { msg.textContent=''; return; }
+    if(pw.value===pw2.value){ msg.textContent='✓ Passwords match'; msg.style.color='#198754'; }
+    else { msg.textContent='✗ Passwords do not match'; msg.style.color='#dc3545'; }
+}
+if(pw && pw2){ pw.addEventListener('input',checkMatch); pw2.addEventListener('input',checkMatch); }
+
+// Particle network animation
+(function(){
+    const cvs=document.getElementById('reg-particles'); if(!cvs)return;
+    const ctx=cvs.getContext('2d'); let W,H,ps=[];
+    const N=60,MD=130,SP=0.22;
+    function resize(){W=cvs.width=cvs.parentElement.clientWidth;H=cvs.height=cvs.parentElement.clientHeight;}
+    resize(); window.addEventListener('resize',resize);
+    for(let i=0;i<N;i++) ps.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*SP,vy:(Math.random()-.5)*SP,r:Math.random()*1.5+.5});
+    function frame(){
+        ctx.clearRect(0,0,W,H);
+        ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(25,135,84,0.3)';ctx.fill();});
+        for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const dx=ps[i].x-ps[j].x,dy=ps[i].y-ps[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<MD){ctx.beginPath();ctx.moveTo(ps[i].x,ps[i].y);ctx.lineTo(ps[j].x,ps[j].y);ctx.strokeStyle=`rgba(25,135,84,${0.1*(1-d/MD)})`;ctx.lineWidth=0.6;ctx.stroke();}}
+        requestAnimationFrame(frame);
+    }
+    frame();
+})();
 </script>
 {% endblock %}

@@ -1,6 +1,8 @@
-from typing import List, Optional
+import json
+from typing import Dict, List, Optional
 from .block import Block
-from .transaction import Transaction
+from .transaction import Transaction, TransactionType
+from .crypto import merkle_root, hash_meets_difficulty
 
 
 class Blockchain:
@@ -20,7 +22,7 @@ class Blockchain:
         nonce = 0
         block.nonce = nonce
         computed = block.compute_hash()
-        while not computed.startswith("0" * self.DIFFICULTY):
+        while not hash_meets_difficulty(computed, self.DIFFICULTY):
             nonce += 1
             block.nonce = nonce
             computed = block.compute_hash()
@@ -34,11 +36,49 @@ class Blockchain:
         self.pending_transactions.append(transaction)
         return self.last_block.index + 1
 
+    def verify_transaction(self, transaction: Transaction) -> bool:
+        """Verify an ECDSA-signed transaction using the sender's public key.
+
+        Returns True when:
+        * the transaction carries a signature and the signature is valid, OR
+        * the sender is ``NETWORK`` (mining reward / system tx).
+
+        Returns False when the signature is missing or invalid.
+        """
+        if transaction.sender == "NETWORK":
+            return True
+        if not transaction.signature:
+            return False
+        try:
+            from .identity import Identity
+            from cryptography.hazmat.primitives.asymmetric import ec
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.backends import default_backend
+
+            did_parts = transaction.sender.split(":")
+            if len(did_parts) != 3 or did_parts[0] != "did":
+                return False
+            pub_hex = did_parts[2]
+            pub_bytes = bytes.fromhex(pub_hex)
+            public_key = ec.EllipticCurvePublicKey.from_encoded_point(
+                ec.SECP256K1(), pub_bytes
+            )
+            # Reconstruct the payload that was signed (signature was None at signing time)
+            tx_dict = transaction.to_dict()
+            tx_dict["signature"] = None
+            payload = json.dumps(tx_dict, sort_keys=True).encode()
+            sig_bytes = bytes.fromhex(transaction.signature)
+            public_key.verify(sig_bytes, payload, ec.ECDSA(hashes.SHA256()))
+            return True
+        except Exception:
+            return False
+
     def mine_block(self, miner_did: str) -> Block:
         reward_tx = Transaction(
             sender="NETWORK",
             recipient=miner_did,
             data={"reward": 1, "type": "mining_reward"},
+            tx_type=TransactionType.MINING_REWARD,
         )
         self.pending_transactions.append(reward_tx)
         block = Block(
@@ -56,7 +96,7 @@ class Blockchain:
     def add_block(self, block: Block) -> bool:
         if block.previous_hash != self.last_block.hash:
             return False
-        if not block.hash.startswith("0" * self.DIFFICULTY):
+        if not hash_meets_difficulty(block.hash, self.DIFFICULTY):
             return False
         if block.hash != block.compute_hash():
             return False
@@ -71,9 +111,44 @@ class Blockchain:
                 return False
             if current.previous_hash != previous.hash:
                 return False
-            if not current.hash.startswith("0" * self.DIFFICULTY):
+            if not hash_meets_difficulty(current.hash, self.DIFFICULTY):
                 return False
         return True
+
+    # ------------------------------------------------------------------
+    # Query helpers
+    # ------------------------------------------------------------------
+
+    def get_balance(self, did: str) -> int:
+        """Compute the balance (mining rewards received) for *did*."""
+        balance = 0
+        for block in self.chain:
+            for tx in block.transactions:
+                if isinstance(tx, Transaction):
+                    if tx.recipient == did and isinstance(tx.data, dict) and "reward" in tx.data:
+                        balance += tx.data["reward"]
+        return balance
+
+    def get_transactions_for(self, did: str) -> List[dict]:
+        """Return all mined transactions involving *did* (as sender or recipient)."""
+        results: List[dict] = []
+        for block in self.chain:
+            for tx in block.transactions:
+                td = tx.to_dict() if isinstance(tx, Transaction) else tx
+                if td.get("sender") == did or td.get("recipient") == did:
+                    results.append(td)
+        return results
+
+    def get_merkle_root(self, block_index: int) -> str:
+        """Return the Merkle root of transaction hashes for the given block."""
+        if block_index < 0 or block_index >= len(self.chain):
+            return "0" * 64
+        block = self.chain[block_index]
+        tx_hashes = [
+            tx.compute_hash() if isinstance(tx, Transaction) else ""
+            for tx in block.transactions
+        ]
+        return merkle_root(tx_hashes)
 
     def to_dict(self) -> dict:
         return {
