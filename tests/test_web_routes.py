@@ -155,3 +155,20 @@ def test_agent_feed_endpoint(client, app, state):
     data = response.get_json()
     assert "feed" in data
     assert isinstance(data["feed"], list)
+
+
+def test_governance_requires_login(client):
+    """GET /governance without a session should redirect to login."""
+    response = client.get("/governance")
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
+def test_governance_authenticated(client, app, state):
+    """GET /governance with a session should return the governance page."""
+    _login(client, app, state)
+    response = client.get("/governance")
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Governance" in html
+    assert "Communities" in html
