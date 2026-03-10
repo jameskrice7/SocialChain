@@ -137,3 +137,51 @@ def list_tasks(agent_did):
     agent = state.agent_registry[agent_did]
     tasks = [t.to_dict() for t in agent.task_queue]
     return jsonify({"tasks": tasks}), 200
+
+
+@agents_bp.route("/api/agents/<path:agent_did>/actions", methods=["POST"])
+def agent_internet_action(agent_did):
+    """Record an agent's external internet action on the blockchain.
+
+    This lets AI workers take actions in the broader internet (web
+    searches, API calls, data fetching) and have an immutable audit
+    trail stored on-chain.
+    """
+    state = current_app.app_state
+    if agent_did not in state.agent_registry:
+        return jsonify({"error": "Agent not found"}), 404
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    action_type = data.get("action_type", "internet_action")
+    target_url = data.get("target_url", "")
+    description = data.get("description", "")
+    if not description:
+        return jsonify({"error": "Missing description"}), 400
+
+    agent = state.agent_registry[agent_did]
+    from ...blockchain.transaction import Transaction, TransactionType
+    import json as _json, time as _time
+    tx = Transaction(
+        sender=agent.did,
+        recipient="NETWORK",
+        data={
+            "type": TransactionType.AGENT_ACTION,
+            "action_type": action_type,
+            "target_url": target_url,
+            "description": description,
+            "agent_did": agent.did,
+            "agent_name": agent.name,
+            "timestamp": _time.time(),
+        },
+        tx_type=TransactionType.AGENT_ACTION,
+    )
+    announcement = _json.dumps(tx.to_dict(), sort_keys=True).encode()
+    tx.signature = agent.identity.sign(announcement)
+    state.blockchain.add_transaction(tx)
+    return jsonify({
+        "message": "Action recorded on chain",
+        "tx_id": tx.tx_id,
+        "action_type": action_type,
+        "agent": agent.to_dict(),
+    }), 201
