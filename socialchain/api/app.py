@@ -5,6 +5,9 @@ from ..blockchain.blockchain import Blockchain
 from ..network.node import NetworkNode
 from ..social.network_map import NetworkMap
 from ..social.request import SocialRequest
+from ..social.trust import TrustGraph
+from ..social.sybil import SybilResistance
+from ..governance.community import Community
 from .auth import User
 
 
@@ -18,6 +21,9 @@ class AppState:
         self.user_registry = {}  # username -> User
         self.did_to_username = {}  # did -> username
         self.contracts = {}  # contract_id -> SmartContract
+        self.trust_graph = TrustGraph()
+        self.sybil_resistance = SybilResistance(self.trust_graph)
+        self.communities = {}  # community_id -> Community
 
 
 app_state = AppState()
@@ -41,6 +47,7 @@ def create_app(state: AppState = None) -> Flask:
     from .routes.web import web_bp
     from .routes.contracts import contracts_bp
     from .routes.internet import internet_bp
+    from .routes.governance import governance_bp
 
     app.register_blueprint(chain_bp)
     app.register_blueprint(network_bp)
@@ -50,5 +57,6 @@ def create_app(state: AppState = None) -> Flask:
     app.register_blueprint(web_bp)
     app.register_blueprint(contracts_bp)
     app.register_blueprint(internet_bp)
+    app.register_blueprint(governance_bp)
 
     return app
