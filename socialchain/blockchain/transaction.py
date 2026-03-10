@@ -17,8 +17,16 @@ class TransactionType:
     AGENT_REGISTRATION = "agent_registration"
     AGENT_TASK = "agent_task"
     AGENT_STATUS = "agent_status"
+    # Valid transaction type values
     GOVERNANCE = "governance"
     AGENT_ACTION = "agent_action"
+
+    _VALID_TYPES = frozenset({
+        "transfer", "mining_reward", "registration", "profile_update",
+        "connection", "contract_deploy", "contract_exec",
+        "agent_registration", "agent_task", "agent_status",
+        "governance", "agent_action",
+    })
 
 
 class Transaction:
@@ -44,9 +52,9 @@ class Transaction:
         """Best-effort inference of tx_type from data payload."""
         if isinstance(self.data, dict):
             t = self.data.get("type", "")
-            if t in vars(TransactionType).values():
+            if t in TransactionType._VALID_TYPES:
                 return t
-            if "reward" in self.data:
+            if self.sender == "NETWORK" and "reward" in self.data:
                 return TransactionType.MINING_REWARD
         return TransactionType.TRANSFER
 

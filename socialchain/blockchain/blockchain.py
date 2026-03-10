@@ -64,11 +64,10 @@ class Blockchain:
                 ec.SECP256K1(), pub_bytes
             )
             # Reconstruct the payload that was signed (signature was None at signing time)
-            saved_sig = transaction.signature
-            transaction.signature = None
-            payload = json.dumps(transaction.to_dict(), sort_keys=True).encode()
-            transaction.signature = saved_sig
-            sig_bytes = bytes.fromhex(saved_sig)
+            tx_dict = transaction.to_dict()
+            tx_dict["signature"] = None
+            payload = json.dumps(tx_dict, sort_keys=True).encode()
+            sig_bytes = bytes.fromhex(transaction.signature)
             public_key.verify(sig_bytes, payload, ec.ECDSA(hashes.SHA256()))
             return True
         except Exception:
