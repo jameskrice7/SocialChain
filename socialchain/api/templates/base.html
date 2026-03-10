@@ -49,6 +49,8 @@
            data-tooltip="Smart Contracts"><i class="bi bi-file-earmark-code"></i></a>
         <a href="{{ url_for('web.internet') }}" class="sc-ab-btn {% if request.endpoint == 'web.internet' %}active{% endif %}"
            data-tooltip="Internet Level"><i class="bi bi-globe2"></i></a>
+        <a href="{{ url_for('web.governance') }}" class="sc-ab-btn {% if request.endpoint == 'web.governance' %}active{% endif %}"
+           data-tooltip="Governance"><i class="bi bi-building"></i></a>
         <a href="{{ url_for('web.profile') }}" class="sc-ab-btn {% if request.endpoint == 'web.profile' %}active{% endif %}"
            data-tooltip="My Profile"><i class="bi bi-person-circle"></i></a>
         <div class="sc-ab-spacer"></div>
@@ -79,6 +81,7 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.ide') }}"><i class="bi bi-layout-wtf"></i> Workbench</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.contracts') }}"><i class="bi bi-file-earmark-code"></i> Contracts</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.internet') }}"><i class="bi bi-globe2"></i> Internet</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('web.governance') }}"><i class="bi bi-building"></i> Governance</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('web.profile') }}"><i class="bi bi-person"></i> Profile</a></li>
                     </ul>
                     <ul class="navbar-nav align-items-center">

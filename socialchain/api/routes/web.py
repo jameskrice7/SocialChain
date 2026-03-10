@@ -78,3 +78,10 @@ def contracts():
 def internet():
     """Internet-level network visualization with web search."""
     return render_template("internet.html", username=session.get("username"), user_did=session.get("user_did"))
+
+
+@web_bp.route("/governance")
+@login_required
+def governance():
+    """Community governance, trust, reputation, and Sybil resistance."""
+    return render_template("governance.html", username=session.get("username"), user_did=session.get("user_did"))
