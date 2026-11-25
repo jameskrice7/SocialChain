@@ -258,7 +258,7 @@
 async function scUpdateStatusBar() {
     try {
         const [chainRes, peersRes, agentsRes] = await Promise.all([
-            fetch('/api/chain'),
+            fetch('/api/chain/summary'),
             fetch('/api/network/peers'),
             fetch('/api/agents'),
         ]);
@@ -270,7 +270,7 @@ async function scUpdateStatusBar() {
         if (peersRes.ok) {
             const d = await peersRes.json();
             const el = document.getElementById('sb-peer-count');
-            if (el) el.textContent = (d.peers || []).length;
+            if (el) el.textContent = Object.keys(d.peers || {}).length;
         }
         if (agentsRes.ok) {
             const d = await agentsRes.json();

@@ -20,7 +20,7 @@
     <div class="col-md-3">
         <div class="card bg-black border-warning text-center p-3">
             <i class="bi bi-hourglass-split text-warning" style="font-size:1.5rem;opacity:0.4;"></i>
-            <div class="display-4 text-warning fw-bold stat-counter" id="pending-count">{{ chain.pending_transactions | length }}</div>
+            <div class="display-4 text-warning fw-bold stat-counter" id="pending-count">{{ chain.pending_count }}</div>
             <div class="text-secondary small">Pending Transactions</div>
         </div>
     </div>
@@ -82,17 +82,17 @@
             <div class="card-body">
                 <form id="tx-form">
                     <div class="mb-2">
-                        <label class="form-label text-secondary small">Recipient DID</label>
+                        <label for="tx-recipient" class="form-label text-secondary small">Recipient DID</label>
                         <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
                                id="tx-recipient" placeholder="did:socialchain:..." required>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label text-secondary small">Message / Data (JSON)</label>
+                        <label for="tx-data" class="form-label text-secondary small">Message / Data (JSON)</label>
                         <textarea class="form-control form-control-sm bg-dark text-light border-secondary"
                                   id="tx-data" rows="3" placeholder='{"message": "Hello!"}'></textarea>
                     </div>
-                    <button type="submit" class="btn btn-sm btn-info">Send</button>
-                    <span id="tx-result" class="ms-2 small text-success"></span>
+                    <button type="submit" class="btn btn-sm btn-info">Sign and send</button>
+                    <span role="status" id="tx-result" class="ms-2 small text-success"></span>
                 </form>
             </div>
         </div>
@@ -103,14 +103,14 @@
             <div class="card-body">
                 <p class="text-secondary small">Mine all pending transactions into a new block.</p>
                 <button class="btn btn-sm btn-warning" id="mine-btn">
-                    <i class="bi bi-hammer"></i> Mine Block
+                    <i class="bi bi-hammer" aria-hidden="true"></i> Mine Block
                 </button>
-                <span id="mine-result" class="ms-2 small text-warning"></span>
+                <span role="status" id="mine-result" class="ms-2 small text-warning"></span>
                 <div class="mt-3">
-                    <span class="badge bg-warning text-dark" id="verify-all-badge" style="cursor:pointer;"
-                          onclick="verifyAllPending()" title="Verify all pending transactions">
-                        <i class="bi bi-patch-check"></i> Verify All Pending
-                    </span>
+                    <button type="button" class="btn btn-sm btn-outline-info" id="verify-pending">
+                        <i class="bi bi-patch-check" aria-hidden="true"></i> Check pending signatures
+                    </button>
+                    <div id="signature-result" class="small text-light mt-2" role="status"></div>
                 </div>
             </div>
         </div>
@@ -263,7 +263,7 @@
     <!-- ── Recent Blocks Table ── -->
     <div class="col-12">
         <div class="card bg-black border-secondary">
-            <div class="card-header border-secondary"><i class="bi bi-list-ul"></i> Recent Blocks</div>
+            <div class="card-header border-secondary"><i class="bi bi-list-ul"></i> Latest 12 blocks</div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-dark table-sm table-hover mb-0">
@@ -323,23 +323,21 @@ const CHAIN_DATA = {{ chain | tojson }};
 function renderBlockchain(chain) {
     const container = document.getElementById('blockchain-container');
     container.innerHTML = '';
-    const blocks = chain.chain;
+    const blocks = chain.recent_blocks;
     document.getElementById('chain-length').textContent = chain.length;
-    document.getElementById('pending-count').textContent = chain.pending_transactions.length;
-    let totalTx = 0;
-    blocks.forEach(b => { totalTx += (b.transactions || []).length; });
-    document.getElementById('tx-total').textContent = totalTx;
+    document.getElementById('pending-count').textContent = chain.pending_count;
+    document.getElementById('tx-total').textContent = chain.mined_count;
 
     const wrapper = document.createElement('div');
     wrapper.className = 'd-flex flex-nowrap align-items-center';
-    blocks.slice().reverse().forEach((block, idx) => {
+    blocks.forEach((block, idx) => {
         const card = document.createElement('div');
         card.className = 'block-card me-2 p-2 rounded border text-center flex-shrink-0';
         card.style.cssText = 'min-width:130px;border-color:#0dcaf0!important;box-shadow:0 0 10px rgba(13,202,240,0.25);';
         card.innerHTML = `
             <div class="text-info small fw-bold">Block #${block.index}</div>
             <div class="text-secondary" style="font-size:0.62rem;">${(block.hash||'').substring(0,14)}…</div>
-            <div class="badge bg-secondary mt-1">${(block.transactions||[]).length} tx</div>
+            <div class="badge bg-secondary mt-1">${block.transaction_count} tx</div>
         `;
         wrapper.appendChild(card);
         if (idx < blocks.length - 1) {
@@ -353,12 +351,12 @@ function renderBlockchain(chain) {
 
     const tbody = document.getElementById('blocks-table');
     tbody.innerHTML = '';
-    blocks.slice().reverse().forEach(block => {
+    blocks.forEach(block => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${block.index}</td>
             <td><code class="text-info" style="font-size:0.7rem;">${(block.hash||'').substring(0,24)}…</code></td>
-            <td><span class="badge bg-secondary">${(block.transactions||[]).length}</span></td>
+            <td><span class="badge bg-secondary">${block.transaction_count}</span></td>
             <td class="text-secondary" style="font-size:0.8rem;">${block.timestamp ? new Date(block.timestamp*1000).toLocaleString() : '-'}</td>
         `;
         tbody.appendChild(tr);
@@ -366,7 +364,7 @@ function renderBlockchain(chain) {
 }
 
 async function loadChain() {
-    const res = await fetch('/api/chain');
+    const res = await fetch('/api/chain/summary');
     const data = await res.json();
     renderBlockchain(data);
 }
@@ -374,7 +372,7 @@ async function loadChain() {
 async function loadPeers() {
     const res = await fetch('/api/network/peers');
     const data = await res.json();
-    document.getElementById('peer-count').textContent = (data.peers||[]).length;
+    document.getElementById('peer-count').textContent = Object.keys(data.peers || {}).length;
 }
 
 // ── Blockchain status ─────────────────────────────────────────────────────
@@ -555,47 +553,68 @@ document.getElementById('tx-form').addEventListener('submit', async (e) => {
         const el = document.getElementById('tx-result');
         el.className = 'ms-2 small text-danger'; el.textContent = 'Invalid JSON'; return;
     }
-    const res = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({sender: USER_DID, recipient, data: txData})
-    });
-    const result = await res.json();
     const el = document.getElementById('tx-result');
-    if (res.ok) {
+    const button = e.currentTarget.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+        const res = await fetch('/api/transactions', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({recipient, data: txData})
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Submission failed');
         el.className = 'ms-2 small text-success';
-        el.textContent = 'Sent! TX: ' + (result.tx_id||'').substring(0,8) + '…';
+        el.textContent = 'Signed and queued · ';
+        const link = document.createElement('a');
+        link.href = '/ide?' + new URLSearchParams({tx: result.tx_id});
+        link.textContent = 'Inspect transaction';
+        el.appendChild(link);
+        document.getElementById('tx-form').reset();
         loadChain();
-    } else {
+    } catch (error) {
         el.className = 'ms-2 small text-danger';
-        el.textContent = result.error || 'Error';
+        el.textContent = error.message;
+    } finally {
+        button.disabled = false;
     }
 });
 
-// ── Mine ──────────────────────────────────────────────────────────────────
-document.getElementById('mine-btn').addEventListener('click', async () => {
-    const res = await fetch('/api/mine', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({miner_did: USER_DID})
-    });
-    const result = await res.json();
+document.getElementById('mine-btn').addEventListener('click', async ({currentTarget: button}) => {
     const el = document.getElementById('mine-result');
-    if (res.ok) {
-        el.className = 'ms-2 small text-success';
-        el.textContent = 'Block #' + result.block.index + ' mined!';
+    button.disabled = true;
+    el.textContent = 'Mining…';
+    try {
+        const res = await fetch('/api/mine', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({miner_did: USER_DID})
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || result.error || 'Mining failed');
+        el.textContent = 'Mined block #' + result.block.index;
         loadChain();
-    } else {
-        el.className = 'ms-2 small text-warning';
-        el.textContent = result.message || result.error || 'Error';
+    } catch (error) {
+        el.textContent = error.message;
+    } finally {
+        button.disabled = false;
     }
 });
 
-async function verifyAllPending() {
-    await fetch(`/api/social/profiles/${encodeURIComponent(USER_DID)}/verify`, {method:'POST'});
-    loadChain();
-    loadVerificationStatus();
-}
+document.getElementById('verify-pending').addEventListener('click', async ({currentTarget: button}) => {
+    const el = document.getElementById('signature-result');
+    button.disabled = true;
+    el.textContent = 'Checking signatures…';
+    try {
+        const res = await fetch('/api/mempool/signatures');
+        if (!res.ok) throw new Error('Could not check pending signatures.');
+        const {valid, unsigned, invalid, system} = await res.json();
+        el.textContent = valid + unsigned + invalid + system === 0 ? 'No pending transactions.'
+            : `${valid} valid · ${unsigned} unsigned · ${invalid} invalid at time of check` + (system ? ` · ${system} system` : '');
+    } catch (error) {
+        el.textContent = error.message;
+    } finally {
+        button.disabled = false;
+    }
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────
 renderBlockchain(CHAIN_DATA);

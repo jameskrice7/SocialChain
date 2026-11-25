@@ -757,16 +757,16 @@ function showNodeInfo(node) {
 async function loadChainMini() {
     const el = document.getElementById('inet-chain-mini');
     try {
-        const res = await fetch('/api/chain');
+        const res = await fetch('/api/chain/summary');
         if (!res.ok) return;
         const data = await res.json();
-        const blocks = (data.chain || []).slice(-6).reverse();
+        const blocks = data.recent_blocks.slice(0, 6);
         el.innerHTML = blocks.map(b => `
             <div style="border-left:2px solid rgba(13,202,240,0.25);padding:4px 8px;margin-bottom:5px;">
                 <div class="text-info" style="font-size:0.72rem;">Block #${b.index}</div>
                 <div class="text-secondary" style="font-size:0.67rem;">
                     <code>${(b.hash||'').slice(0,20)}…</code>
-                    · ${(b.transactions||[]).length} tx
+                    · ${b.transaction_count} tx
                 </div>
             </div>`).join('') || '<span class="text-secondary">No blocks yet.</span>';
     } catch(e) {}
