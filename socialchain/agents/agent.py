@@ -1,4 +1,3 @@
-import json
 from typing import Any, Callable, Dict, List, Optional
 
 from ..blockchain.identity import Identity
@@ -264,8 +263,7 @@ class AIAgent:
                 "timestamp": _time.time(),
             },
         )
-        announcement = json.dumps(tx.to_dict(), sort_keys=True).encode()
-        tx.signature = self.identity.sign(announcement)
+        tx.signature = self.identity.sign(tx.signing_payload())
         blockchain.add_transaction(tx)
         return tx
 
@@ -283,8 +281,7 @@ class AIAgent:
                 "timestamp": _time.time(),
             },
         )
-        announcement = json.dumps(tx.to_dict(), sort_keys=True).encode()
-        tx.signature = self.identity.sign(announcement)
+        tx.signature = self.identity.sign(tx.signing_payload())
         blockchain.add_transaction(tx)
         return tx
 
@@ -306,8 +303,7 @@ class AIAgent:
             recipient="NETWORK",
             data=tx_data,
         )
-        announcement = json.dumps(tx.to_dict(), sort_keys=True).encode()
-        tx.signature = self.identity.sign(announcement)
+        tx.signature = self.identity.sign(tx.signing_payload())
         blockchain.add_transaction(tx)
         return tx
 

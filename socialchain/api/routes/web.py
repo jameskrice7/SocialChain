@@ -9,7 +9,7 @@ def index():
     """Public landing page when not logged in; dashboard when logged in."""
     if "user_did" in session:
         state = current_app.app_state
-        chain_data = state.blockchain.to_dict()
+        chain_data = state.blockchain.summary()
         return render_template(
             "dashboard.html",
             chain=chain_data,
@@ -23,7 +23,7 @@ def index():
 @login_required
 def dashboard():
     state = current_app.app_state
-    chain_data = state.blockchain.to_dict()
+    chain_data = state.blockchain.summary()
     return render_template(
         "dashboard.html",
         chain=chain_data,

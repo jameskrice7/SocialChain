@@ -52,7 +52,7 @@ class Transaction:
         """Best-effort inference of tx_type from data payload."""
         if isinstance(self.data, dict):
             t = self.data.get("type", "")
-            if t in TransactionType._VALID_TYPES:
+            if isinstance(t, str) and t in TransactionType._VALID_TYPES:
                 return t
             if self.sender == "NETWORK" and "reward" in self.data:
                 return TransactionType.MINING_REWARD
@@ -68,6 +68,16 @@ class Transaction:
             "tx_type": self.tx_type,
             "timestamp": self.timestamp,
         }
+
+    def is_mining_reward(self) -> bool:
+        return (self.sender == "NETWORK" and self.tx_type == TransactionType.MINING_REWARD
+                and self.signature is None and isinstance(self.data, dict)
+                and type(self.data.get("reward")) is int and self.data["reward"] == 1)
+
+    def signing_payload(self) -> bytes:
+        fields = self.to_dict()
+        fields["signature"] = None
+        return json.dumps(fields, sort_keys=True).encode()
 
     def compute_hash(self) -> str:
         tx_string = json.dumps(

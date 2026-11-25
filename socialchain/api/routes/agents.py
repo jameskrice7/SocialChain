@@ -161,7 +161,7 @@ def agent_internet_action(agent_did):
 
     agent = state.agent_registry[agent_did]
     from ...blockchain.transaction import Transaction, TransactionType
-    import json as _json, time as _time
+    import time as _time
     tx = Transaction(
         sender=agent.did,
         recipient="NETWORK",
@@ -176,8 +176,7 @@ def agent_internet_action(agent_did):
         },
         tx_type=TransactionType.AGENT_ACTION,
     )
-    announcement = _json.dumps(tx.to_dict(), sort_keys=True).encode()
-    tx.signature = agent.identity.sign(announcement)
+    tx.signature = agent.identity.sign(tx.signing_payload())
     state.blockchain.add_transaction(tx)
     return jsonify({
         "message": "Action recorded on chain",

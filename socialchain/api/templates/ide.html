@@ -139,7 +139,7 @@
 }
 #sc-tx-list { flex: 1; overflow-y: auto; }
 .sc-tx-item {
-    padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    background: transparent; border: 0; padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
     cursor: pointer; transition: background .12s;
     font-size: 0.76rem;
 }
@@ -294,10 +294,27 @@ select.sc-form-control option { background: #0d0d1e; }
             <div id="sc-tx-list-col">
                 <div id="sc-tx-list-header">
                     <i class="bi bi-activity me-1"></i>Transactions
-                    <button class="sc-topo-btn float-end py-0 px-2" style="font-size:0.7rem;"
-                            onclick="scTxLoad()"><i class="bi bi-arrow-clockwise"></i></button>
+                    <button type="button" class="sc-topo-btn float-end py-0 px-2"
+                            aria-label="Refresh transactions" onclick="scTxLoad()"><i class="bi bi-arrow-clockwise"></i></button>
                 </div>
-                <div id="sc-tx-list"><div class="p-3 text-secondary" style="font-size:0.78rem;">Loading…</div></div>
+                <form id="sc-tx-filter" class="p-2 border-bottom border-secondary">
+                    <label class="sc-form-label" for="sc-tx-query">Search transactions</label>
+                    <input class="sc-form-control mb-2" type="search" id="sc-tx-query" placeholder="ID, sender, recipient or type">
+                    <div class="d-flex gap-2">
+                        <select id="sc-tx-status" class="sc-form-control" aria-label="Transaction status">
+                            <option value="all">All statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                        </select>
+                        <button class="sc-topo-btn" type="submit">Search</button>
+                    </div>
+                </form>
+                <div id="sc-tx-list"></div>
+                <div class="d-flex align-items-center justify-content-between p-2">
+                    <button type="button" class="sc-topo-btn" id="sc-tx-prev" disabled>Previous</button>
+                    <span class="small text-secondary" role="status" id="sc-tx-range"></span>
+                    <button type="button" class="sc-topo-btn" id="sc-tx-next" disabled>Next</button>
+                </div>
             </div>
             <div id="sc-tx-detail-col">
                 <p class="text-secondary" style="font-size:0.85rem;">Select a transaction to inspect.</p>
@@ -745,76 +762,94 @@ async function scTopoCommit() {
 }
 
 /* ══ Transaction Inspector ══════════════════════════════════════════════ */
-let txAllList = [];
+const txPageSize = 25;
+let txOffset = 0;
+let txRequest = 0;
+let txQuery = '';
+let txSelected = null;
+const txList = document.getElementById('sc-tx-list');
+const txRange = document.getElementById('sc-tx-range');
+const txPrev = document.getElementById('sc-tx-prev');
+const txNext = document.getElementById('sc-tx-next');
+const txDetail = document.getElementById('sc-tx-detail-col');
 
-async function scTxLoad() {
-    const listEl = document.getElementById('sc-tx-list');
-    listEl.innerHTML = '<div class="p-3 text-secondary" style="font-size:0.78rem;">Loading…</div>';
-    try {
-        const res = await fetch('/api/chain');
-        const data = await res.json();
-        const blocks = data.chain || [];
-        txAllList = [];
-        blocks.forEach(block => {
-            (block.transactions || []).forEach(tx => {
-                txAllList.push({ ...tx, block_index: block.index, block_hash: block.hash, block_ts: block.timestamp });
-            });
-        });
-        // Also include pending
-        (data.pending_transactions || []).forEach(tx => {
-            txAllList.push({ ...tx, block_index: 'PENDING', block_hash: null, block_ts: null });
-        });
-    } catch(e) {
-        listEl.innerHTML = '<div class="p-3 text-danger" style="font-size:0.78rem;">Failed to load chain.</div>';
-        return;
-    }
-    scTxRender();
+function applyTxFilter() {
+    txQuery = document.getElementById('sc-tx-query').value.trim();
+    scTxLoad(0);
 }
+document.getElementById('sc-tx-filter').addEventListener('submit', event => {
+    event.preventDefault();
+    applyTxFilter();
+});
+document.getElementById('sc-tx-status').addEventListener('change', applyTxFilter);
+txPrev.addEventListener('click', () => scTxLoad(Math.max(0, txOffset - txPageSize)));
+txNext.addEventListener('click', () => scTxLoad(txOffset + txPageSize));
 
-function scTxRender() {
-    const listEl = document.getElementById('sc-tx-list');
-    if (!txAllList.length) {
-        listEl.innerHTML = '<div class="p-3 text-secondary" style="font-size:0.78rem;">No transactions found.</div>';
-        return;
-    }
-    listEl.innerHTML = '';
-    txAllList.slice().reverse().forEach((tx, idx) => {
-        const div = document.createElement('div');
-        div.className = 'sc-tx-item';
-        div.dataset.idx = String(txAllList.length - 1 - idx);
-        const txType = (tx.data && tx.data.type) ? tx.data.type : 'transfer';
-        const ts = tx.block_ts ? new Date(tx.block_ts * 1000).toLocaleString() : 'Pending';
-        div.innerHTML = `
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-dark border border-secondary" style="font-size:0.65rem;">${escH(String(tx.block_index))}</span>
-                <span class="text-secondary" style="font-size:0.7rem;">${escH(txType)}</span>
-            </div>
-            <div class="sc-tx-hash">${escH((tx.tx_id||'').slice(0,20))}…</div>
-            <div class="sc-tx-meta">${ts}</div>`;
-        div.addEventListener('click', () => scTxDetail(parseInt(div.dataset.idx)));
-        listEl.appendChild(div);
+async function scTxLoad(offset = txOffset) {
+    const requestId = ++txRequest;
+    txPrev.disabled = txNext.disabled = true;
+    txRange.textContent = 'Loading…';
+    txList.replaceChildren();
+    txDetail.textContent = '';
+    const params = new URLSearchParams({
+        limit: txPageSize, offset, q: txQuery,
+        status: document.getElementById('sc-tx-status').value
     });
+    try {
+        const res = await fetch('/api/transactions?' + params);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (requestId !== txRequest) return;
+        txOffset = offset;
+        txPrev.disabled = offset === 0;
+        txNext.disabled = !data.has_more;
+        const rows = data.transactions;
+        txRange.textContent = rows.length ? `${offset + 1}–${offset + rows.length}` : 'No results';
+        if (!rows.length) {
+            txDetail.textContent = 'No transactions match this view.';
+            return;
+        }
+        rows.forEach(tx => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'sc-tx-item d-block w-100 text-start text-light';
+            const location = tx.block_index === null ? 'Pending' : 'Block #' + tx.block_index;
+            button.innerHTML = `<span class="badge bg-dark border border-secondary">${escH(location)}</span>
+                <span>${escH(tx.tx_type)}</span>
+                <span class="sc-tx-hash d-block">${escH(tx.tx_id.slice(0, 20))}…</span>`;
+            button.addEventListener('click', () => scTxDetail(tx, button));
+            txList.appendChild(button);
+        });
+        const index = Math.max(0, rows.findIndex(tx => tx.tx_id === txSelected));
+        scTxDetail(rows[index], txList.children[index]);
+    } catch {
+        if (requestId !== txRequest) return;
+        txRange.textContent = 'Load failed';
+        txDetail.textContent = 'Could not load transactions. Use Refresh to retry.';
+        txPrev.disabled = txOffset === 0;
+    }
 }
 
-function scTxDetail(idx) {
-    const tx = txAllList[idx];
-    document.querySelectorAll('.sc-tx-item').forEach(el => el.classList.remove('selected'));
-    const els = document.querySelectorAll('.sc-tx-item');
-    const revIdx = txAllList.length - 1 - idx;
-    if (els[revIdx]) els[revIdx].classList.add('selected');
-
-    const detEl = document.getElementById('sc-tx-detail-col');
-    const ts = tx.block_ts ? new Date(tx.block_ts * 1000).toLocaleString() : 'Pending';
+function scTxDetail(tx, button) {
+    txSelected = tx.tx_id;
+    txList.querySelector('.selected')?.classList.remove('selected');
+    button.classList.add('selected');
+    const detEl = txDetail;
+    const ts = tx.timestamp == null ? 'Unknown' : new Date(tx.timestamp * 1000).toLocaleString();
+    const signatureLabel = {valid: 'Valid signature', invalid: 'Invalid signature',
+        unsigned: 'Unsigned', system: 'System reward'}[tx.signature_status];
     detEl.innerHTML = `
         <h6 class="text-info mb-3"><i class="bi bi-activity me-1"></i>Transaction Detail</h6>
         <dl class="row" style="font-size:0.78rem;">
             <dt class="col-4 text-secondary">TX ID</dt>
             <dd class="col-8"><code class="text-warning" style="font-size:0.7rem;word-break:break-all;">${escH(tx.tx_id||'—')}</code></dd>
             <dt class="col-4 text-secondary">Block</dt>
-            <dd class="col-8"><span class="badge bg-dark border border-info">${escH(String(tx.block_index))}</span></dd>
+            <dd class="col-8"><span class="badge bg-dark border border-info">${escH(tx.block_index ?? "Pending")}</span></dd>
             <dt class="col-4 text-secondary">Block Hash</dt>
-            <dd class="col-8"><code class="text-secondary" style="font-size:0.7rem;">${escH((tx.block_hash||'—').slice(0,32))}…</code></dd>
-            <dt class="col-4 text-secondary">Timestamp</dt>
+            <dd class="col-8"><code class="text-secondary" style="font-size:0.7rem;overflow-wrap:anywhere;">${escH(tx.block_hash || "Awaiting mining")}</code></dd>
+            <dt class="col-4 text-secondary">Signature check</dt>
+            <dd class="col-8">${escH(signatureLabel)}</dd>
+            <dt class="col-4 text-secondary">Submitted</dt>
             <dd class="col-8">${ts}</dd>
             <dt class="col-4 text-secondary">Sender</dt>
             <dd class="col-8"><code class="text-warning" style="font-size:0.7rem;word-break:break-all;">${escH(tx.sender||'—')}</code></dd>
@@ -823,7 +858,7 @@ function scTxDetail(idx) {
         </dl>
         <div class="mt-2">
             <div class="sc-form-label mb-1">Data Payload</div>
-            <pre style="background:#07070f;border:1px solid rgba(13,202,240,0.12);border-radius:5px;padding:10px;font-size:0.72rem;color:#c9d1d9;overflow-x:auto;max-height:200px;">${escH(JSON.stringify(tx.data||{}, null, 2))}</pre>
+            <pre style="background:#07070f;border:1px solid rgba(13,202,240,0.12);border-radius:5px;padding:10px;font-size:0.72rem;color:#c9d1d9;overflow-x:auto;max-height:200px;">${escH(JSON.stringify(tx.data, null, 2))}</pre>
         </div>
         ${tx.signature ? `<div class="mt-2"><div class="sc-form-label mb-1">Signature</div><code class="text-secondary" style="font-size:0.65rem;word-break:break-all;">${escH(tx.signature)}</code></div>` : ''}`;
 }
@@ -1035,7 +1070,14 @@ function escH(s) {
 
 /* ══ Init ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-    scRegLoad();
+    const tx = new URLSearchParams(location.search).get('tx');
+    if (tx) {
+        txSelected = txQuery = tx;
+        document.getElementById('sc-tx-query').value = tx;
+        scIdeTab('txinspector', document.querySelector('[data-panel="txinspector"]'));
+    } else {
+        scRegLoad();
+    }
     scContractListLoad();
 });
 </script>

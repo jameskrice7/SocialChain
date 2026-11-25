@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded',()=>{const inp=document.getElementB
 async function loadData(){
     document.getElementById('sc-refresh-icon').classList.add('spin');
     try{
-        const [profRes,mapRes,chainRes]=await Promise.all([fetch('/api/social/profiles'),fetch('/api/social/map'),fetch('/api/chain')]);
+        const [profRes,mapRes,chainRes]=await Promise.all([fetch('/api/social/profiles'),fetch('/api/social/map'),fetch('/api/chain/summary')]);
         let profiles=[];if(profRes.ok){const d=await profRes.json();profiles=d.profiles||[];}
         const adjMap={};if(mapRes.ok){const d=await mapRes.json();Object.assign(adjMap,d.map||{});}
         if(chainRes.ok){const cd=await chainRes.json();document.getElementById('stat-blocks').textContent=cd.length||'–';}

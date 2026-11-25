@@ -15,7 +15,7 @@ class Block:
         timestamp: Optional[float] = None,
     ):
         self.index = index
-        self.timestamp = timestamp or time.time()
+        self.timestamp = time.time() if timestamp is None else timestamp
         self.transactions = transactions
         self.previous_hash = previous_hash
         self.nonce = nonce
@@ -41,6 +41,19 @@ class Block:
             "nonce": self.nonce,
             "hash": self.hash,
         }
+
+    @classmethod
+    def from_dict(cls, record: dict) -> "Block":
+        block = cls(
+            index=record["index"],
+            transactions=[Transaction.from_dict(tx) for tx in record["transactions"]],
+            previous_hash=record["previous_hash"],
+            nonce=record["nonce"],
+            timestamp=record["timestamp"],
+        )
+        if block.hash != record["hash"]:
+            raise ValueError("Block hash does not match its contents")
+        return block
 
     def __repr__(self) -> str:
         return f"Block(index={self.index}, hash={self.hash[:16]}..., txs={len(self.transactions)})"

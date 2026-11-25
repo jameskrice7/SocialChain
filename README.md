@@ -27,7 +27,7 @@ All releases are published automatically via GitHub Actions when a version tag i
 |-------|-------------|
 | **Node Registry** | Browse all nodes (people, devices, AI agents), filter by type, inspect DIDs and metadata, trigger on-chain verification |
 | **Topology Builder** | Drag-and-drop canvas to design network topologies; add node types and draw connections; commit to blockchain in one click |
-| **Transaction Inspector** | Browse every transaction across every block and the mempool; full JSON payload + signature view |
+| **Transaction Inspector** | Search pending and confirmed transactions by ID, participant or type. Inspect the payload, block hash and signature result. |
 | **Contract Editor** | Write Solidity smart contracts with built-in templates; simulate compile/deploy; send source to the AI agent for an audit |
 | **Agent Chat Panel** | Always-available AI assistant (`Ctrl+\``) — answers questions about contracts, transactions, DIDs, and topology in real time |
 | **Network Map (2D)** | Live force-directed D3 graph of all nodes and connections, updated in real time |
@@ -145,7 +145,10 @@ The server starts on `http://localhost:5000`.
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /api/chain | Get full blockchain |
-| POST | /api/transactions | Create transaction |
+| GET | /api/chain/summary | Ledger counts and the 12 most recent block headers with transaction counts |
+| GET | /api/transactions | Search transactions with `q`, `status` (all, pending, confirmed), `limit` (1–100) and `offset` |
+| POST | /api/transactions | Queue a transaction for mining |
+| GET | /api/mempool/signatures | Count valid, invalid, unsigned and system entries in the current queue |
 | POST | /api/mine | Mine pending transactions |
 | GET | /api/network/peers | List peers |
 | POST | /api/network/peers | Register peer |
@@ -161,6 +164,12 @@ The server starts on `http://localhost:5000`.
 | GET | /api/agents/feed | Autonomous agent activity feed |
 | POST | /api/agents/\<did\>/tasks | Submit task to agent |
 | GET | /api/agents/\<did\>/tasks | List agent tasks |
+
+### Follow a transaction
+
+Sign in, open the Dashboard, enter a recipient and JSON payload, and choose **Sign and send**. **Inspect transaction** opens the new entry in the workbench. **Check pending signatures** reports the signature status of the current queue. After mining, refresh the inspector to see the confirming block and its hash.
+
+The dashboard signs with the identity held by the running server for the signed-in user. API clients can submit an externally signed `Transaction.to_dict()` with its original ID, timestamp and signature. A repeat of that signed transaction returns HTTP 409. Explicit-sender unsigned submissions are still supported and appear as **Unsigned**. This workbench stores identities and ledger state in process memory.
 
 ## Running Tests
 

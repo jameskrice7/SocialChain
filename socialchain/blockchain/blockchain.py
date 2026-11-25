@@ -1,14 +1,27 @@
-import json
-from typing import Dict, List, Optional
+from itertools import chain, islice
+from threading import Lock
+from typing import List, Optional, Set
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+
 from .block import Block
 from .transaction import Transaction, TransactionType
 from .crypto import merkle_root, hash_meets_difficulty
+
+
+class DuplicateTransaction(ValueError):
+    """The submitted ID is already pending or confirmed."""
 
 
 class Blockchain:
     DIFFICULTY = 4
 
     def __init__(self):
+        self._lock = Lock()
+        self._miner = Lock()
+        self._transaction_ids: Set[str] = set()
         self.chain: List[Block] = []
         self.pending_transactions: List[Transaction] = []
         self._create_genesis_block()
@@ -33,101 +46,188 @@ class Blockchain:
         return self.chain[-1]
 
     def add_transaction(self, transaction: Transaction) -> int:
-        self.pending_transactions.append(transaction)
-        return self.last_block.index + 1
+        with self._lock:
+            if transaction.tx_id in self._transaction_ids:
+                raise DuplicateTransaction(transaction.tx_id)
+            if transaction.tx_type == TransactionType.MINING_REWARD:
+                raise ValueError("Mining rewards are created by the miner")
+            self._transaction_ids.add(transaction.tx_id)
+            self.pending_transactions.append(transaction)
+            return self.last_block.index + 1
 
     def verify_transaction(self, transaction: Transaction) -> bool:
         """Verify an ECDSA-signed transaction using the sender's public key.
 
         Returns True when:
         * the transaction carries a signature and the signature is valid, OR
-        * the sender is ``NETWORK`` (mining reward / system tx).
+        * the transaction has the format of an unsigned system mining reward.
 
         Returns False when the signature is missing or invalid.
         """
         if transaction.sender == "NETWORK":
-            return True
+            return transaction.is_mining_reward()
         if not transaction.signature:
             return False
         try:
-            from .identity import Identity
-            from cryptography.hazmat.primitives.asymmetric import ec
-            from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.backends import default_backend
-
             did_parts = transaction.sender.split(":")
-            if len(did_parts) != 3 or did_parts[0] != "did":
+            if len(did_parts) != 3 or did_parts[:2] != ["did", "socialchain"]:
                 return False
             pub_hex = did_parts[2]
             pub_bytes = bytes.fromhex(pub_hex)
             public_key = ec.EllipticCurvePublicKey.from_encoded_point(
                 ec.SECP256K1(), pub_bytes
             )
-            # Reconstruct the payload that was signed (signature was None at signing time)
-            tx_dict = transaction.to_dict()
-            tx_dict["signature"] = None
-            payload = json.dumps(tx_dict, sort_keys=True).encode()
             sig_bytes = bytes.fromhex(transaction.signature)
-            public_key.verify(sig_bytes, payload, ec.ECDSA(hashes.SHA256()))
+            public_key.verify(sig_bytes, transaction.signing_payload(), ec.ECDSA(hashes.SHA256()))
             return True
-        except Exception:
+        except (InvalidSignature, ValueError, TypeError, AttributeError):
             return False
 
-    def mine_block(self, miner_did: str) -> Block:
-        reward_tx = Transaction(
-            sender="NETWORK",
-            recipient=miner_did,
-            data={"reward": 1, "type": "mining_reward"},
-            tx_type=TransactionType.MINING_REWARD,
-        )
-        self.pending_transactions.append(reward_tx)
-        block = Block(
-            index=len(self.chain),
-            transactions=list(self.pending_transactions),
-            previous_hash=self.last_block.hash,
-        )
-        nonce, block_hash = self._proof_of_work(block)
-        block.nonce = nonce
-        block.hash = block_hash
-        self.chain.append(block)
-        self.pending_transactions = []
-        return block
+    def mine_block(self, miner_did: str, *, require_pending: bool = False) -> Optional[Block]:
+        # Keep submissions and reads available during proof of work.
+        with self._miner:
+            while True:
+                with self._lock:
+                    pending = list(self.pending_transactions)
+                    if require_pending and not pending:
+                        return None
+                    tip = self.last_block
+                reward = Transaction(
+                    sender="NETWORK", recipient=miner_did,
+                    data={"reward": 1, "type": "mining_reward"},
+                    tx_type=TransactionType.MINING_REWARD,
+                )
+                block = Block(tip.index + 1, pending + [reward], tip.hash)
+                block.nonce, block.hash = self._proof_of_work(block)
+                with self._lock:
+                    if self.last_block is not tip:
+                        continue
+                    self.chain.append(block)
+                    self._transaction_ids.add(reward.tx_id)
+                    del self.pending_transactions[:len(pending)]
+                    return block
 
     def add_block(self, block: Block) -> bool:
-        if block.previous_hash != self.last_block.hash:
+        with self._lock:
+            seen = {tx.tx_id for old in self.chain for tx in old.transactions}
+            if not self._valid_block(block, len(self.chain), self.last_block.hash, seen):
+                return False
+            confirmed = {tx.tx_id for tx in block.transactions}
+            self.pending_transactions = [
+                tx for tx in self.pending_transactions if tx.tx_id not in confirmed
+            ]
+            self.chain.append(block)
+            self._transaction_ids.update(confirmed)
+            return True
+
+    def _valid_block(self, block: Block, index: int, previous_hash: str, seen: Set[str]) -> bool:
+        if (type(block.index) is not int or block.index != index
+                or type(block.nonce) is not int or block.nonce < 0
+                or block.previous_hash != previous_hash or block.hash != block.compute_hash()
+                or not hash_meets_difficulty(block.hash, self.DIFFICULTY)):
             return False
-        if not hash_meets_difficulty(block.hash, self.DIFFICULTY):
+        for position, tx in enumerate(block.transactions):
+            if not isinstance(tx.tx_id, str) or not tx.tx_id or tx.tx_id in seen:
+                return False
+            seen.add(tx.tx_id)
+            if tx.tx_type == TransactionType.MINING_REWARD:
+                if position != len(block.transactions) - 1 or not tx.is_mining_reward():
+                    return False
+        return True
+
+    def _valid_chain(self, blocks: List[Block]) -> bool:
+        if not blocks or blocks[0].transactions:
             return False
-        if block.hash != block.compute_hash():
-            return False
-        self.chain.append(block)
+        previous_hash = "0" * 64
+        seen = set()
+        for index, block in enumerate(blocks):
+            if not self._valid_block(block, index, previous_hash, seen):
+                return False
+            previous_hash = block.hash
         return True
 
     def validate_chain(self) -> bool:
-        for i in range(1, len(self.chain)):
-            current = self.chain[i]
-            previous = self.chain[i - 1]
-            if current.hash != current.compute_hash():
-                return False
-            if current.previous_hash != previous.hash:
-                return False
-            if not hash_meets_difficulty(current.hash, self.DIFFICULTY):
-                return False
-        return True
+        with self._lock:
+            return self._valid_chain(self.chain)
 
-    # ------------------------------------------------------------------
-    # Query helpers
-    # ------------------------------------------------------------------
+    def adopt_chain(self, blocks: List[Block]) -> bool:
+        """Adopt a longer valid peer chain and return displaced work to the queue."""
+        if len(blocks) <= len(self.chain) or not self._valid_chain(blocks):
+            return False
+        with self._lock:
+            if len(blocks) <= len(self.chain):
+                return False
+            confirmed = {tx.tx_id for block in blocks for tx in block.transactions}
+            displaced = (tx for block in self.chain for tx in block.transactions
+                         if not tx.is_mining_reward())
+            pending = []
+            for tx in chain(displaced, self.pending_transactions):
+                if tx.tx_id not in confirmed:
+                    pending.append(tx)
+                    confirmed.add(tx.tx_id)
+            self.chain = list(blocks)
+            self.pending_transactions = pending
+            self._transaction_ids = confirmed
+            return True
+
+    def summary(self) -> dict:
+        with self._lock:
+            return {
+                "length": len(self.chain),
+                "pending_count": len(self.pending_transactions),
+                "mined_count": len(self._transaction_ids) - len(self.pending_transactions),
+                "recent_blocks": [
+                    {"index": block.index, "hash": block.hash, "timestamp": block.timestamp,
+                     "transaction_count": len(block.transactions)}
+                    for block in reversed(self.chain[-12:])
+                ],
+            }
+
+    def transaction_page(self, status: str, query: str, offset: int, limit: int) -> dict:
+        """Return newest entries first within pending, then confirmed ledger order."""
+        with self._lock:
+            groups = []
+            if status != "confirmed":
+                groups.append((None, self.pending_transactions))
+            blocks = () if status == "pending" else reversed(self.chain)
+            confirmed = ((block, block.transactions) for block in blocks)
+            entries = (
+                (tx, block)
+                for block, transactions in chain(groups, confirmed)
+                for tx in reversed(transactions)
+                if not query or any(query in str(field).casefold() for field in
+                                    (tx.tx_id, tx.sender, tx.recipient, tx.tx_type))
+            )
+            page = list(islice(entries, offset, offset + limit + 1))
+        return {
+            "transactions": [
+                {**tx.to_dict(), "block_index": block.index if block else None,
+                 "block_hash": block.hash if block else None,
+                 "signature_status": self.signature_status(tx)}
+                for tx, block in page[:limit]
+            ],
+            "has_more": len(page) > limit,
+        }
+
+    def signature_status(self, tx: Transaction) -> str:
+        if tx.is_mining_reward():
+            return "system"
+        if not tx.signature:
+            return "unsigned"
+        return "valid" if self.verify_transaction(tx) else "invalid"
+
+    def pending_signatures(self) -> dict:
+        with self._lock:
+            transactions = list(self.pending_transactions)
+        counts = {"valid": 0, "invalid": 0, "unsigned": 0, "system": 0}
+        for tx in transactions:
+            counts[self.signature_status(tx)] += 1
+        return counts
 
     def get_balance(self, did: str) -> int:
         """Compute the balance (mining rewards received) for *did*."""
-        balance = 0
-        for block in self.chain:
-            for tx in block.transactions:
-                if isinstance(tx, Transaction):
-                    if tx.recipient == did and isinstance(tx.data, dict) and "reward" in tx.data:
-                        balance += tx.data["reward"]
-        return balance
+        return sum(1 for block in self.chain for tx in block.transactions
+                   if tx.recipient == did and tx.is_mining_reward())
 
     def get_transactions_for(self, did: str) -> List[dict]:
         """Return all mined transactions involving *did* (as sender or recipient)."""
@@ -151,11 +251,12 @@ class Blockchain:
         return merkle_root(tx_hashes)
 
     def to_dict(self) -> dict:
-        return {
-            "chain": [block.to_dict() for block in self.chain],
-            "length": len(self.chain),
-            "pending_transactions": [tx.to_dict() for tx in self.pending_transactions],
-        }
+        with self._lock:
+            return {
+                "chain": [block.to_dict() for block in self.chain],
+                "length": len(self.chain),
+                "pending_transactions": [tx.to_dict() for tx in self.pending_transactions],
+            }
 
     def __repr__(self) -> str:
         return f"Blockchain(length={len(self.chain)}, pending={len(self.pending_transactions)})"

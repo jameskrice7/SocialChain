@@ -1,10 +1,10 @@
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import requests
 
 from .registry import PeerRegistry
+from ..blockchain.block import Block
 from ..blockchain.identity import Identity
 from ..blockchain.blockchain import Blockchain
 
@@ -41,37 +41,21 @@ class NetworkNode:
         return results
 
     def sync_chain(self, blockchain: Blockchain) -> bool:
-        longest_chain = None
-        max_length = len(blockchain.chain)
+        updated = False
         for did, address in self.registry.list().items():
             url = f"http://{address}/api/chain"
             try:
                 response = requests.get(url, timeout=5)
-                data = response.json()
-                if data["length"] > max_length:
-                    max_length = data["length"]
-                    longest_chain = data
-            except Exception as e:
-                logger.warning(f"Failed to sync with {did}: {e}")
-        if longest_chain:
-            # Replace the local chain with the longer one from peers
-            from ..blockchain.block import Block
-            from ..blockchain.transaction import Transaction
-            new_chain = []
-            for block_data in longest_chain["chain"]:
-                txs = [Transaction.from_dict(tx) for tx in block_data["transactions"]]
-                block = Block(
-                    index=block_data["index"],
-                    transactions=txs,
-                    previous_hash=block_data["previous_hash"],
-                    nonce=block_data["nonce"],
-                    timestamp=block_data["timestamp"],
-                )
-                block.hash = block_data["hash"]
-                new_chain.append(block)
-            blockchain.chain = new_chain
-            return True
-        return False
+                response.raise_for_status()
+                records = response.json()["chain"]
+                if not isinstance(records, list) or len(records) <= len(blockchain.chain):
+                    continue
+                blocks = [Block.from_dict(record) for record in records]
+                if blockchain.adopt_chain(blocks):
+                    updated = True
+            except (requests.RequestException, KeyError, ValueError, TypeError) as exc:
+                logger.warning("Failed to sync with %s: %s", did, exc)
+        return updated
 
     def to_dict(self) -> dict:
         return {
