@@ -98,14 +98,28 @@
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card bg-black border-secondary">
-            <div class="card-header border-secondary"><i class="bi bi-hammer text-warning"></i> Mine Block</div>
+        <section class="card bg-black text-light border-secondary h-100" aria-labelledby="mining-title">
+            <div class="card-header border-secondary d-flex align-items-center justify-content-between">
+                <h5 id="mining-title" class="fs-6 mb-0"><i class="bi bi-hammer text-warning" aria-hidden="true"></i> Mining console</h5>
+                <span id="mining-state" class="small text-warning"></span>
+            </div>
             <div class="card-body">
-                <p class="text-secondary small">Mine all pending transactions into a new block.</p>
-                <button class="btn btn-sm btn-warning" id="mine-btn">
-                    <i class="bi bi-hammer" aria-hidden="true"></i> Mine Block
-                </button>
-                <span role="status" id="mine-result" class="ms-2 small text-warning"></span>
+                <form id="mining-form" class="d-flex align-items-end flex-wrap gap-2">
+                    <div>
+                        <label class="form-label small mb-1" for="mining-limit">Transactions per block</label>
+                        <input id="mining-limit" class="form-control form-control-sm bg-dark text-light border-secondary"
+                               type="number" min="1" step="1" placeholder="All pending" style="width:10rem">
+                    </div>
+                    <button class="btn btn-sm btn-warning" id="mine-btn" disabled>Mine block</button>
+                    <button type="button" class="btn btn-sm btn-outline-light" id="mining-cancel" hidden>Cancel mining</button>
+                </form>
+                <p role="status" id="mine-result" class="small text-light mt-2 mb-2"></p>
+                <dl id="mining-metrics" class="row g-0 small bg-dark rounded p-2 mb-2" hidden>
+                    <div class="col"><dt class="fw-normal">Attempts</dt><dd class="mb-0 font-monospace" id="mining-attempts">0</dd></div>
+                    <div class="col"><dt class="fw-normal">Hashes/s</dt><dd class="mb-0 font-monospace" id="mining-rate">0</dd></div>
+                    <div class="col"><dt class="fw-normal">Elapsed</dt><dd class="mb-0 font-monospace" id="mining-elapsed">0 s</dd></div>
+                </dl>
+                <button type="button" id="mining-inspect" class="btn btn-sm btn-outline-info" hidden>Inspect mined block</button>
                 <div class="mt-3">
                     <button type="button" class="btn btn-sm btn-outline-info" id="verify-pending">
                         <i class="bi bi-patch-check" aria-hidden="true"></i> Check pending signatures
@@ -113,7 +127,7 @@
                     <div id="signature-result" class="small text-light mt-2" role="status"></div>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
     <!-- ── Smart Contracts Summary ── -->
@@ -314,10 +328,30 @@
 </div>
 {% endblock %}
 
+{% block dialogs %}
+<div class="modal fade" id="block-dialog" tabindex="-1" aria-labelledby="block-heading" data-bs-theme="dark">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 id="block-heading" class="modal-title">Block details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small" id="block-message" role="status"></p>
+                <dl class="small text-break" id="block-fields"></dl>
+                <div id="block-transactions" class="list-group"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/mining-console.js') }}"></script>
 <script>
-const USER_DID = "{{ user_did }}";
+const USER_DID = {{ user_did | tojson }};
 const CHAIN_DATA = {{ chain | tojson }};
+const mining = new MiningConsole(USER_DID, loadChain);
 
 // ── Blockchain rendering ──────────────────────────────────────────────────
 function renderBlockchain(chain) {
@@ -326,6 +360,7 @@ function renderBlockchain(chain) {
     const blocks = chain.recent_blocks;
     document.getElementById('chain-length').textContent = chain.length;
     document.getElementById('pending-count').textContent = chain.pending_count;
+    mining.setPending(chain.pending_count);
     document.getElementById('tx-total').textContent = chain.mined_count;
 
     const wrapper = document.createElement('div');
@@ -354,11 +389,12 @@ function renderBlockchain(chain) {
     blocks.forEach(block => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${block.index}</td>
+            <td><button type="button" class="btn btn-link text-info p-0" aria-label="Inspect block ${block.index}">#${block.index}</button></td>
             <td><code class="text-info" style="font-size:0.7rem;">${(block.hash||'').substring(0,24)}…</code></td>
             <td><span class="badge bg-secondary">${block.transaction_count}</span></td>
             <td class="text-secondary" style="font-size:0.8rem;">${block.timestamp ? new Date(block.timestamp*1000).toLocaleString() : '-'}</td>
         `;
+        tr.querySelector('button').addEventListener('click', () => mining.inspect(block.index, block.hash));
         tbody.appendChild(tr);
     });
 }
@@ -579,26 +615,6 @@ document.getElementById('tx-form').addEventListener('submit', async (e) => {
     }
 });
 
-document.getElementById('mine-btn').addEventListener('click', async ({currentTarget: button}) => {
-    const el = document.getElementById('mine-result');
-    button.disabled = true;
-    el.textContent = 'Mining…';
-    try {
-        const res = await fetch('/api/mine', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({miner_did: USER_DID})
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.message || result.error || 'Mining failed');
-        el.textContent = 'Mined block #' + result.block.index;
-        loadChain();
-    } catch (error) {
-        el.textContent = error.message;
-    } finally {
-        button.disabled = false;
-    }
-});
-
 document.getElementById('verify-pending').addEventListener('click', async ({currentTarget: button}) => {
     const el = document.getElementById('signature-result');
     button.disabled = true;
@@ -618,6 +634,7 @@ document.getElementById('verify-pending').addEventListener('click', async ({curr
 
 // ── Init ──────────────────────────────────────────────────────────────────
 renderBlockchain(CHAIN_DATA);
+mining.refresh();
 loadPeers();
 loadVerificationStatus();
 loadActiveNodes();

@@ -109,10 +109,10 @@ def test_submissions_during_proof_survive_and_competing_miners_serialize(monkeyp
     started, resume = Event(), Event()
     proof = ledger._proof_of_work
 
-    def pause_proof(block):
+    def pause_proof(block, report=None):
         started.set()
         assert resume.wait(5)
-        return proof(block)
+        return proof(block, report)
 
     monkeypatch.setattr(ledger, "_proof_of_work", pause_proof)
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -174,10 +174,10 @@ def test_tip_change_during_proof_retries_against_adopted_chain(monkeypatch):
     peer.mine_block("peer")
     proof = ledger._proof_of_work
 
-    def change_tip(block):
+    def change_tip(block, report=None):
         assert ledger.adopt_chain(peer.chain)
         monkeypatch.setattr(ledger, "_proof_of_work", proof)
-        return proof(block)
+        return proof(block, report)
 
     monkeypatch.setattr(ledger, "_proof_of_work", change_tip)
     new_block = ledger.mine_block("miner", require_pending=True)

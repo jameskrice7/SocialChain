@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from .block import Block
+from .mining import MinerBusy
 from .transaction import Transaction, TransactionType
 from .crypto import merkle_root, hash_meets_difficulty
 
@@ -31,15 +32,20 @@ class Blockchain:
         genesis.nonce, genesis.hash = self._proof_of_work(genesis)
         self.chain.append(genesis)
 
-    def _proof_of_work(self, block: Block):
-        nonce = 0
-        block.nonce = nonce
-        computed = block.compute_hash()
-        while not hash_meets_difficulty(computed, self.DIFFICULTY):
-            nonce += 1
-            block.nonce = nonce
-            computed = block.compute_hash()
-        return nonce, computed
+    def _proof_of_work(self, block: Block, report=None):
+        hash_nonce = block.nonce_hasher()
+        target = "0" * self.DIFFICULTY
+        first = 0
+        while True:
+            for nonce in range(first, first + 256):
+                digest = hash_nonce(nonce)
+                if digest.startswith(target):
+                    if report:
+                        report(nonce - first + 1)
+                    return nonce, digest
+            if report:
+                report(256)
+            first += 256
 
     @property
     def last_block(self) -> Block:
@@ -83,12 +89,17 @@ class Blockchain:
         except (InvalidSignature, ValueError, TypeError, AttributeError):
             return False
 
-    def mine_block(self, miner_did: str, *, require_pending: bool = False) -> Optional[Block]:
+    def mine_block(self, miner_did: str, *, require_pending: bool = False,
+                   limit: Optional[int] = None, job=None) -> Optional[Block]:
+        if limit is not None and (type(limit) is not int or limit < 1):
+            raise ValueError("Batch size must be a positive integer")
         # Keep submissions and reads available during proof of work.
-        with self._miner:
+        if not self._miner.acquire(blocking=job is None):
+            raise MinerBusy()
+        try:
             while True:
                 with self._lock:
-                    pending = list(self.pending_transactions)
+                    pending = self.pending_transactions[:limit]
                     if require_pending and not pending:
                         return None
                     tip = self.last_block
@@ -98,14 +109,20 @@ class Blockchain:
                     tx_type=TransactionType.MINING_REWARD,
                 )
                 block = Block(tip.index + 1, pending + [reward], tip.hash)
-                block.nonce, block.hash = self._proof_of_work(block)
+                if job:
+                    job.begin_candidate(block.index, len(pending))
+                block.nonce, block.hash = self._proof_of_work(block, job.record if job else None)
                 with self._lock:
-                    if self.last_block is not tip:
+                    if self.last_block is not tip or block.compute_hash() != block.hash:
                         continue
+                    if job:
+                        job.begin_commit()
                     self.chain.append(block)
                     self._transaction_ids.add(reward.tx_id)
                     del self.pending_transactions[:len(pending)]
                     return block
+        finally:
+            self._miner.release()
 
     def add_block(self, block: Block) -> bool:
         with self._lock:
@@ -169,6 +186,10 @@ class Blockchain:
             self.pending_transactions = pending
             self._transaction_ids = confirmed
             return True
+
+    def block_at(self, index: int) -> Optional[Block]:
+        with self._lock:
+            return self.chain[index] if 0 <= index < len(self.chain) else None
 
     def summary(self) -> dict:
         with self._lock:
