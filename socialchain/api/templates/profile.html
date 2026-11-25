@@ -30,6 +30,14 @@
                 <span class="badge bg-success ms-1">You</span>
                 {% endif %}
 
+                {% if did != user_did %}
+                <div class="mt-2">
+                    <a class="btn btn-sm btn-outline-info" href="{{ url_for('web.network', target=did) }}">
+                        Find connection path
+                    </a>
+                </div>
+                {% endif %}
+
                 {# Bio #}
                 {% if profile.metadata and profile.metadata.get('bio') %}
                 <p class="text-secondary mt-2 mb-0" style="font-size:0.8rem;font-style:italic;">

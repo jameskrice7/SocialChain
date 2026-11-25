@@ -34,6 +34,23 @@ def get_network_map():
     return jsonify({"map": state.network_map.visualize()}), 200
 
 
+@social_bp.get("/api/social/paths")
+def connection_path():
+    source = request.args.get("source")
+    target = request.args.get("target")
+    if not source or not target:
+        return jsonify(error="Provide both source and target profile DIDs"), 400
+    try:
+        result = current_app.app_state.network_map.connection_path(
+            source, target, request.args.get("avoid") or None
+        )
+    except KeyError as exc:
+        return jsonify(error="Profile not found", did=exc.args[0]), 404
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(result)
+
+
 @social_bp.route("/api/social/requests", methods=["POST"])
 def create_request():
     state = current_app.app_state

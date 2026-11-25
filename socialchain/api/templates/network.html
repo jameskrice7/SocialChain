@@ -11,7 +11,7 @@
                 <i class="bi bi-diagram-3 text-info"></i> Network Visualization
             </h4>
             <p class="text-secondary mb-0 small">
-                Node: <code class="text-warning">{{ user_did }}</code>
+                Node: <code class="text-warning text-break">{{ user_did }}</code>
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -52,16 +52,38 @@
         </div>
     </div>
 
+    <div class="col-12 col-xl-4">
+        <section class="card bg-black text-light border-secondary h-100" aria-labelledby="path-heading" data-bs-theme="dark">
+            <h5 class="card-header border-secondary fs-6 mb-0" id="path-heading">Connection paths</h5>
+            <div class="card-body">
+                <form id="path-form">
+                    <label class="form-label small" for="path-source">Start profile</label>
+                    <select id="path-source" class="form-select form-select-sm mb-3" required></select>
+                    <label class="form-label small" for="path-target">Destination</label>
+                    <select id="path-target" class="form-select form-select-sm mb-3" required></select>
+                    <label class="form-label small" for="path-avoid">Exclude an intermediary</label>
+                    <select id="path-avoid" class="form-select form-select-sm mb-3"></select>
+                    <div class="d-flex gap-2">
+                        <button id="path-submit" class="btn btn-sm btn-info" disabled>Find path</button>
+                        <button id="path-clear" type="button" class="btn btn-sm btn-outline-secondary" hidden>Clear result</button>
+                    </div>
+                </form>
+                <div class="mt-3 small" id="path-status" role="status"></div>
+                <div id="path-results" class="small"></div>
+            </div>
+        </section>
+    </div>
+
     <!-- ── Network Graph ── -->
-    <div class="col-12">
+    <div class="col-12 col-xl-8">
         <div class="card bg-black border-info">
             <div class="card-header border-secondary d-flex align-items-center justify-content-between">
-                <span><i class="bi bi-share-fill text-info me-1"></i> Live Graph</span>
+                <span class="text-light"><i class="bi bi-share-fill text-info me-1"></i> Live Graph</span>
                 <!-- Legend -->
                 <div class="d-flex align-items-center gap-3 flex-wrap" style="font-size:0.75rem;">
                     <span class="d-flex align-items-center gap-1">
                         <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#0dcaf0"/></svg>
-                        <span class="text-secondary">Human SC Node</span>
+                        <span class="text-secondary">Person / device</span>
                     </span>
                     <span class="d-flex align-items-center gap-1">
                         <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#ffc107"/></svg>
@@ -138,6 +160,13 @@
 </div><!-- /row -->
 
 <style>
+#network-svg .path-original { stroke: #adb5bd; stroke-width: 3; stroke-dasharray: 5 4; }
+#network-svg .path-selected { stroke: #ffc107; stroke-width: 4; stroke-opacity: 1; stroke-dasharray: none; }
+#network-svg .path-member circle:not(.sc-pulse-ring) { stroke: #fff3bf; stroke-width: 3; }
+#network-svg .path-excluded { opacity: .35; }
+#path-results { max-height: 22rem; overflow-y: auto; }
+#path-results ol { padding-left: 1.3rem; overflow-wrap: anywhere; }
+#path-results a { color: #8ce4f4; }
 /* Toggle buttons */
 .sc-toggle-btn {
     background: transparent;
@@ -203,18 +232,22 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="{{ url_for('static', filename='js/connection-paths.js') }}"></script>
 <script>
-const USER_DID = "{{ user_did }}";
-const USERNAME = "{{ username }}";
+const USER_DID = {{ user_did | tojson }};
+const paths = new ConnectionPaths(USER_DID, () => {
+    if (currentView !== 'global') setView('global');
+});
 
 let currentView = 'global';
 let allProfiles  = [];
-let networkMap   = { nodes: [], links: [] };
+let networkLinks = [];
+let networkRequest = 0;
 let simulation   = null;
 
 /* ─── View toggle ─────────────────────────────────────────────── */
 function setView(view) {
+    if (view === 'my') paths.clear();
     currentView = view;
     document.getElementById('btn-global').classList.toggle('active', view === 'global');
     document.getElementById('btn-my').classList.toggle('active',     view === 'my');
@@ -223,6 +256,7 @@ function setView(view) {
 
 /* ─── Data loading ─────────────────────────────────────────────── */
 async function loadNetwork() {
+    const requestId = ++networkRequest;
     const icon = document.getElementById('refresh-icon');
     icon.classList.add('spin');  // optional CSS spin class
 
@@ -232,18 +266,22 @@ async function loadNetwork() {
             fetch('/api/social/map')
         ]);
 
-        if (profRes.ok)  { const d = await profRes.json(); allProfiles = d.profiles || []; }
-        if (mapRes.ok)   { const d = await mapRes.json();  networkMap  = d.map       || { nodes: [], links: [] }; }
+        if (!profRes.ok || !mapRes.ok) throw new Error('Network unavailable');
+        const [{profiles}, {map}] = await Promise.all([profRes.json(), mapRes.json()]);
+        if (requestId !== networkRequest) return;
+        allProfiles = profiles;
+        networkLinks = Object.entries(map).flatMap(([source, neighbors]) =>
+            neighbors.filter(target => source <= target).map(target => ({source, target})));
+        renderNetwork();
+        renderAgentsList();
+        renderSocialSidebar();
+        updateStats();
+        paths.updateProfiles(profiles);
     } catch (e) {
-        console.warn('Network load error:', e);
+        if (requestId === networkRequest) paths.unavailable();
     } finally {
-        icon.classList.remove('spin');
+        if (requestId === networkRequest) icon.classList.remove('spin');
     }
-
-    renderNetwork();
-    renderAgentsList();
-    renderSocialSidebar();
-    updateStats();
 }
 
 /* ─── Stats bar ────────────────────────────────────────────────── */
@@ -256,7 +294,7 @@ function updateStats() {
         if (Array.isArray(ext)) extCount += ext.length;
     });
 
-    const connCount = (networkMap.links || []).length;
+    const connCount = networkLinks.length;
 
     document.getElementById('stat-sc-nodes').textContent     = scNodes;
     document.getElementById('stat-ext-contacts').textContent = extCount;
@@ -266,6 +304,7 @@ function updateStats() {
 /* ─── D3 Network render ─────────────────────────────────────────── */
 function renderNetwork() {
     const svg = d3.select('#network-svg');
+    if (simulation) simulation.stop();
     svg.selectAll('*').remove();
 
     const el     = document.getElementById('network-svg');
@@ -275,13 +314,12 @@ function renderNetwork() {
     svg.attr('viewBox', `0 0 ${width} ${height}`);
 
     /* Build node list */
-    let nodes = (networkMap.nodes || []).map(n => ({
-        ...n,
-        type: n.did === USER_DID ? 'self'
-            : (n.is_agent ? 'agent' : 'human')
+    let nodes = allProfiles.map(p => ({
+        ...p, id: p.did, username: p.display_name,
+        type: p.did === USER_DID ? 'self' : p.device_type
     }));
 
-    let links = (networkMap.links || []).map(l => ({ ...l }));
+    let links = networkLinks.map(l => ({ ...l }));
 
     /* Add external contact nodes for global view */
     if (currentView === 'global') {
@@ -345,18 +383,7 @@ function renderNetwork() {
         target: typeof l.target === 'object' ? l.target.id : l.target
     }));
 
-    /* Defs for arrow */
-    const defs = svg.append('defs');
-    defs.append('marker')
-        .attr('id', 'arrow')
-        .attr('viewBox', '0 -4 8 8')
-        .attr('refX', 22).attr('refY', 0)
-        .attr('markerWidth', 6).attr('markerHeight', 6)
-        .attr('orient', 'auto')
-        .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#0dcaf060');
-
     /* Simulation */
-    if (simulation) simulation.stop();
     simulation = d3.forceSimulation(nodes)
         .force('link',   d3.forceLink(links)
             .id(d => d.did || d.id)
@@ -377,12 +404,13 @@ function renderNetwork() {
         .attr('stroke-width',     d => d.external ? 1 : 1.5)
         .attr('stroke-dasharray', d => d.external ? '5,3' : null)
         .attr('stroke-opacity',   0.7)
-        .attr('marker-end',       d => d.external ? null : 'url(#arrow)');
+        .attr('class', 'network-edge');
 
     /* Node groups */
     const tooltip = document.getElementById('sc-tooltip');
 
     const node = g.append('g').selectAll('g').data(nodes).join('g')
+        .attr('class', 'network-node')
         .style('cursor', 'pointer')
         .call(d3.drag()
             .on('start', (e, d) => {
@@ -456,6 +484,8 @@ function renderNetwork() {
         .attr('font-size', 12)
         .text('🤖');
 
+    paths.highlight();
+
     /* Tick */
     simulation.on('tick', () => {
         link
@@ -479,7 +509,7 @@ function storeNode(obj) {
 /* ─── Agents list ───────────────────────────────────────────────── */
 function renderAgentsList() {
     const el = document.getElementById('agents-list');
-    const agents = allProfiles.filter(p => p.is_agent);
+    const agents = allProfiles.filter(p => p.device_type === 'agent');
 
     if (!agents.length) {
         el.innerHTML = '<div class="p-3 text-secondary small">No agents found.</div>';
@@ -487,13 +517,13 @@ function renderAgentsList() {
     }
 
     el.innerHTML = agents.map(a => {
-        const key = storeNode({ did: a.did, username: a.username, type: 'agent', metadata: a.metadata || {} });
+        const key = storeNode({ did: a.did, username: a.display_name, type: 'agent', metadata: a.metadata || {} });
         return `
         <div class="list-group-item list-group-item-action bg-black border-secondary px-3 py-2"
              data-node-key="${escHtml(key)}" style="cursor:pointer;">
             <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-robot text-warning"></i>
-                <span class="text-warning small fw-semibold">${escHtml(a.username || a.did)}</span>
+                <span class="text-warning small fw-semibold">${escHtml(a.display_name || a.did)}</span>
             </div>
             <div class="text-secondary" style="font-size:0.68rem;word-break:break-all;">
                 ${escHtml((a.did || '').slice(0, 36))}…
@@ -586,7 +616,7 @@ function renderSocialSidebar() {
         ext.forEach(contact => {
             const p = (contact.platform || 'other').toLowerCase();
             if (!byPlatform[p]) byPlatform[p] = [];
-            byPlatform[p].push({ ...contact, ownerDid: profile.did, ownerName: profile.username });
+            byPlatform[p].push({ ...contact, ownerDid: profile.did, ownerName: profile.display_name });
         });
     });
 
