@@ -30,7 +30,7 @@ All releases are published automatically via GitHub Actions when a version tag i
 | **Transaction Inspector** | Search pending and confirmed transactions by ID, participant or type. Inspect the payload, block hash and signature result. |
 | **Contract Editor** | Write Solidity smart contracts with built-in templates; simulate compile/deploy; send source to the AI agent for an audit |
 | **Agent Chat Panel** | Always-available AI assistant (`Ctrl+\``) — answers questions about contracts, transactions, DIDs, and topology in real time |
-| **Network Map (2D)** | Live force-directed D3 graph of all nodes and connections, updated in real time |
+| **Network Map (2D)** | Explore profile connections, trace shortest paths, and compare routes with an intermediary excluded |
 | **3D Network Globe** | Full 3D interactive WebGL force graph — drag, zoom, and explore the network at fractal depth |
 
 ## Desktop App
@@ -155,6 +155,7 @@ The server starts on `http://localhost:5000`.
 | GET | /api/social/profiles | List profiles |
 | POST | /api/social/profiles | Create/update profile |
 | GET | /api/social/map | Get network adjacency map |
+| GET | /api/social/paths | Find a shortest profile path with `source` and `target` DIDs. Optional `avoid` compares the route and reachable profile count with one intermediary excluded. |
 | POST | /api/social/requests | Create social request |
 | GET | /api/social/requests | List social requests |
 | PATCH | /api/social/requests/\<id\> | Update request status |
@@ -164,6 +165,12 @@ The server starts on `http://localhost:5000`.
 | GET | /api/agents/feed | Autonomous agent activity feed |
 | POST | /api/agents/\<did\>/tasks | Submit task to agent |
 | GET | /api/agents/\<did\>/tasks | List agent tasks |
+
+### Explore a connection path
+
+Open **Network Map**, choose a start profile and destination, then select **Find path**. The map highlights a shortest path through registered profile connections. Select a name in the ordered path to visit that profile. **Find connection path** on someone else's profile opens the map with your account as the starting point.
+
+To see how much a network depends on an intermediary, select it under **Exclude an intermediary** and run the search again. The map compares both paths and the number of other profiles reachable from the start. Exclusions apply only to the comparison.
 
 ### Follow a transaction
 
