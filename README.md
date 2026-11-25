@@ -149,7 +149,11 @@ The server starts on `http://localhost:5000`.
 | GET | /api/transactions | Search transactions with `q`, `status` (all, pending, confirmed), `limit` (1–100) and `offset` |
 | POST | /api/transactions | Queue a transaction for mining |
 | GET | /api/mempool/signatures | Count valid, invalid, unsigned and system entries in the current queue |
-| POST | /api/mine | Mine pending transactions |
+| POST | /api/mine | Mine pending transactions synchronously |
+| POST | /api/mining | Start one background block for the signed-in miner. Optional positive integer `limit` selects the oldest pending transactions. |
+| GET | /api/mining | Read the latest background job, elapsed time, attempt count and average hashes per second |
+| DELETE | /api/mining/\<job_id\> | Request cancellation as the miner who started the job |
+| GET | /api/blocks/\<index\> | Inspect one confirmed block and its transactions |
 | GET | /api/network/peers | List peers |
 | POST | /api/network/peers | Register peer |
 | GET | /api/social/profiles | List profiles |
@@ -177,6 +181,12 @@ To see how much a network depends on an intermediary, select it under **Exclude 
 Sign in, open the Dashboard, enter a recipient and JSON payload, and choose **Sign and send**. **Inspect transaction** opens the new entry in the workbench. **Check pending signatures** reports the signature status of the current queue. After mining, refresh the inspector to see the confirming block and its hash.
 
 The dashboard signs with the identity held by the running server for the signed-in user. API clients can submit an externally signed `Transaction.to_dict()` with its original ID, timestamp and signature. A repeat of that signed transaction returns HTTP 409. Explicit-sender unsigned submissions are still supported and appear as **Unsigned**. This workbench stores identities and ledger state in process memory.
+
+### Control mining from the dashboard
+
+Use **Mining console** to mine all pending transactions or set a maximum for one block. The batch limit excludes the mining reward. Attempts, elapsed time, and average hashes per second update while the server works. You can leave the dashboard and return to the current run. The initiating account can cancel before the block commits.
+
+Select **Inspect mined block** or a block number in **Latest 12 blocks** to examine the nonce, hashes, timestamp, and transactions. Select a transaction to open its signature and payload in the workbench. The console shows the latest background job for the running server process.
 
 ## Running Tests
 

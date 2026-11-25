@@ -2,6 +2,7 @@ import os
 import secrets
 from flask import Flask
 from ..blockchain.blockchain import Blockchain
+from ..blockchain.mining import MiningService
 from ..network.node import NetworkNode
 from ..social.network_map import NetworkMap
 from ..social.request import SocialRequest
@@ -14,6 +15,7 @@ from .auth import User
 class AppState:
     def __init__(self):
         self.blockchain = Blockchain()
+        self.mining = MiningService(self.blockchain)
         self.network_node = NetworkNode()
         self.network_map = NetworkMap()
         self.agent_registry = {}  # did -> AIAgent

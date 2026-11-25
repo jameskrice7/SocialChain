@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app, session
 from ...blockchain.blockchain import DuplicateTransaction
+from ...blockchain.mining import MinerBusy
 from ...blockchain.transaction import Transaction, TransactionType
 
 chain_bp = Blueprint("chain", __name__)
@@ -88,6 +89,55 @@ def mine():
     if block is None:
         return jsonify({"message": "No pending transactions to mine"}), 400
     return jsonify({"message": "Block mined", "block": block.to_dict()}), 200
+
+
+@chain_bp.get("/api/blocks/<int:index>")
+def block_detail(index):
+    block = current_app.app_state.blockchain.block_at(index)
+    if block is None:
+        return jsonify(error="Block not found"), 404
+    return jsonify(block=block.to_dict())
+
+
+@chain_bp.get("/api/mining")
+def mining_status():
+    job = current_app.app_state.mining.latest()
+    return jsonify(job=job.snapshot() if job else None)
+
+
+@chain_bp.post("/api/mining")
+def start_mining():
+    state = current_app.app_state
+    owner = state.user_registry.get(session.get("username"))
+    if owner is None or owner.did != session.get("user_did"):
+        return jsonify(error="Sign in to start a mining job"), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="Provide a JSON object with an optional transaction limit"), 400
+    limit = data.get("limit")
+    if limit is not None and (type(limit) is not int or limit < 1):
+        return jsonify(error="limit must be a positive integer or null"), 400
+    try:
+        job = state.mining.start(owner.did, limit)
+    except MinerBusy:
+        return jsonify(error="A mining job is already active"), 409
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 409
+    return jsonify(job=job.snapshot()), 202
+
+
+@chain_bp.delete("/api/mining/<job_id>")
+def cancel_mining(job_id):
+    if not session.get("user_did"):
+        return jsonify(error="Sign in to cancel mining"), 401
+    job = current_app.app_state.mining.latest()
+    if not job or job.id != job_id:
+        return jsonify(error="Mining job no longer current"), 404
+    if job.owner != session["user_did"]:
+        return jsonify(error="Only the miner can cancel this job"), 403
+    if not job.cancel():
+        return jsonify(error="Mining has already finished or is committing"), 409
+    return jsonify(job=job.snapshot()), 200
 
 
 @chain_bp.route("/api/balance/<path:did>", methods=["GET"])

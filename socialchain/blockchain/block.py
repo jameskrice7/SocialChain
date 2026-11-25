@@ -21,26 +21,38 @@ class Block:
         self.nonce = nonce
         self.hash = self.compute_hash()
 
-    def compute_hash(self) -> str:
-        block_dict = {
-            "index": self.index,
-            "timestamp": self.timestamp,
-            "transactions": [tx.to_dict() for tx in self.transactions],
-            "previous_hash": self.previous_hash,
-            "nonce": self.nonce,
-        }
-        block_string = json.dumps(block_dict, sort_keys=True)
-        return hashlib.sha256(block_string.encode()).hexdigest()
-
-    def to_dict(self) -> dict:
+    def _hash_fields(self) -> dict:
         return {
             "index": self.index,
             "timestamp": self.timestamp,
             "transactions": [tx.to_dict() for tx in self.transactions],
             "previous_hash": self.previous_hash,
             "nonce": self.nonce,
-            "hash": self.hash,
         }
+
+    def compute_hash(self) -> str:
+        payload = json.dumps(self._hash_fields(), sort_keys=True).encode()
+        return hashlib.sha256(payload).hexdigest()
+
+    def nonce_hasher(self):
+        """Prepare the canonical JSON once for this candidate's nonce search."""
+        fields = self._hash_fields()
+        fields["nonce"] = 0
+        encoded = json.dumps(fields, sort_keys=True).encode()
+        # In sorted block JSON, the integer index and nonce precede all user data.
+        prefix, separator, suffix = encoded.partition(b'"nonce": 0,')
+        if not separator:
+            raise ValueError("Missing nonce in canonical block JSON")
+        prefix += b'"nonce": '
+        suffix = b',' + suffix
+
+        def hash_nonce(nonce):
+            return hashlib.sha256(prefix + str(nonce).encode() + suffix).hexdigest()
+
+        return hash_nonce
+
+    def to_dict(self) -> dict:
+        return {**self._hash_fields(), "hash": self.hash}
 
     @classmethod
     def from_dict(cls, record: dict) -> "Block":
